@@ -147,27 +147,31 @@ class _HypnogramPainter extends CustomPainter {
       tp.paint(canvas, Offset(lx, size.height - tp.height));
     }
 
-    // Ribbon columns. Positioned by timestamp, so a missing stretch (a gap
-    // in the data) stays blank rather than being stretched over — that's the
-    // "show the gaps" behaviour. A 0.75px inset on each side segments the
-    // ribbon into distinct bars.
+    // Ribbon columns. Adjacent segments touch (with a ½px overlap to avoid
+    // antialiasing seams) so the stages form one continuous stepped ribbon.
+    // A column is positioned by timestamp, so a real break in the data —
+    // where the next segment starts after a gap — leaves a blank stripe,
+    // which is the "show the gaps" behaviour.
+    const gapThreshold = Duration(minutes: 5);
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
-      final left = xFor(seg.start) + 0.75;
-      final right = xFor(seg.end) - 0.75;
+      final hasGapBefore = i > 0 &&
+          seg.start.difference(segments[i - 1].end) > gapThreshold;
+      final left = xFor(seg.start) - (hasGapBefore ? 0 : 0.5);
+      final right = xFor(seg.end) + 0.5;
       if (right <= left) continue;
       final h = heightFor(seg.stage);
       final rect = RRect.fromRectAndCorners(
         Rect.fromLTRB(left, baseline - h, right, baseline),
-        topLeft: const Radius.circular(3),
-        topRight: const Radius.circular(3),
+        topLeft: const Radius.circular(2),
+        topRight: const Radius.circular(2),
       );
       canvas.drawRRect(
         rect,
         Paint()
           ..color = selected == i
               ? colorFor(seg.stage)
-              : colorFor(seg.stage).withOpacity(0.92),
+              : colorFor(seg.stage).withOpacity(0.95),
       );
     }
   }

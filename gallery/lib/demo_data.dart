@@ -61,28 +61,39 @@ final List<Spo2Reading> _spo2 = () {
 
 final List<SleepSegment> _sleep = () {
   final rng = Random(29);
-  final start = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 22);
-  const stages = [
-    SleepStage.light, SleepStage.deep, SleepStage.light, SleepStage.rem,
-    SleepStage.awake, SleepStage.light, SleepStage.deep, SleepStage.rem,
-    SleepStage.light, SleepStage.rem, SleepStage.light, SleepStage.awake,
-    SleepStage.light, SleepStage.rem,
-  ];
-  var cursor = start;
+  final start = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 22, 25);
+  final nightEnd = start.add(const Duration(hours: 7, minutes: 3));
+  // Realistic-ish architecture: deep dominates early, REM grows later, short
+  // awake spikes throughout, with finer segments so the ribbon reads like a
+  // real hypnogram rather than a handful of wide bars.
   final out = <SleepSegment>[];
-  for (var idx = 0; idx < stages.length; idx++) {
-    final s = stages[idx];
-    final mins = switch (s) {
-      SleepStage.awake => 2 + rng.nextInt(4),
-      SleepStage.rem => 15 + rng.nextInt(20),
-      SleepStage.light => 25 + rng.nextInt(30),
-      SleepStage.deep => 20 + rng.nextInt(30),
+  var cursor = start;
+  var i = 0;
+  while (cursor.isBefore(nightEnd)) {
+    final progress = cursor.difference(start).inMinutes / 423.0; // 0..1
+    final roll = rng.nextDouble();
+    final SleepStage stage;
+    if (roll < 0.10) {
+      stage = SleepStage.awake;
+    } else if (roll < 0.10 + 0.30 * (1 - progress)) {
+      stage = SleepStage.deep; // deep weighted to the first half
+    } else if (roll < 0.10 + 0.30 * (1 - progress) + 0.22 * progress) {
+      stage = SleepStage.rem; // REM weighted to the second half
+    } else {
+      stage = SleepStage.light;
+    }
+    final mins = switch (stage) {
+      SleepStage.awake => 3 + rng.nextInt(5),
+      SleepStage.rem => 8 + rng.nextInt(14),
+      SleepStage.light => 7 + rng.nextInt(16),
+      SleepStage.deep => 10 + rng.nextInt(16),
     };
     final end = cursor.add(Duration(minutes: mins));
-    out.add(SleepSegment(start: cursor, end: end, stage: s));
+    out.add(SleepSegment(start: cursor, end: end, stage: stage));
     cursor = end;
-    // A mid-night sensor gap so the ribbon shows a real break, not a stretch.
-    if (idx == 4) cursor = cursor.add(const Duration(minutes: 22));
+    // A single mid-night sensor gap so the ribbon shows a real break.
+    if (i == 11) cursor = cursor.add(const Duration(minutes: 20));
+    i++;
   }
   return out;
 }();
