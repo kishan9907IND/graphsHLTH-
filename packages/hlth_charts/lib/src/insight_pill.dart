@@ -3,50 +3,68 @@ import 'package:flutter/services.dart';
 
 import 'chart_theme.dart';
 
-/// New component: the Insight Pill. A short, accented takeaway that sits
-/// between the chart and the stats — "Heart rate above your resting
-/// baseline", "SpO₂ stable overnight". It's the one line a user reads if
-/// they read nothing else, so it gets the pale-lime highlight treatment
-/// from the dashboard's "150 Heart Points" banner.
+/// The Insight Pill (HLTH-App-Flows V1 · node 946:6525). A slim single-line
+/// takeaway — "Saturday was your strongest day in six weeks" — on a raised
+/// dark surface, with a positive-status dot on the left and a trailing
+/// chevron. Tappable: it usually drills into the detail behind the insight.
 class InsightPill extends StatelessWidget {
   const InsightPill({
     super.key,
     required this.message,
-    this.icon = Icons.auto_awesome,
+    this.onTap,
+    this.dotColor = HlthChartTokens.insightDot,
   });
 
   final String message;
-  final IconData icon;
+  final VoidCallback? onTap;
+  final Color dotColor;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: HlthChartTokens.insightFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: HlthChartTokens.insightText.withOpacity(0.25),
-        ),
-      ),
+    final content = Padding(
+      // pl 12 / pr 10 / py 9, gap 9 — from the DS spec.
+      padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: HlthChartTokens.insightText),
-          const SizedBox(width: 10),
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               message,
-              style: HlthChartText.cardSubtitle.copyWith(
-                color: HlthChartTokens.insightText,
-                fontWeight: FontWeight.w500,
+              style: const TextStyle(
+                fontSize: 11,
                 height: 1.3,
+                color: HlthChartTokens.dsTextSecondary,
               ),
             ),
           ),
+          const SizedBox(width: 9),
+          const Icon(
+            Icons.chevron_right,
+            size: 14,
+            color: HlthChartTokens.dsTextSecondary,
+          ),
         ],
       ),
+    );
+
+    return Material(
+      color: HlthChartTokens.surfaceRaised,
+      borderRadius: BorderRadius.circular(999),
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onTap!();
+              },
+              child: content,
+            ),
     );
   }
 }

@@ -43,9 +43,16 @@ class HlthChartTokens {
   static const Color ctaFill = Color(0xFFFFFFFF);
   static const Color ctaText = Color(0xFF0A0A0F);
 
-  // Insight pill accent (the pale-lime highlight banner from the dashboard).
-  static const Color insightFill = Color(0xFF1F2616);
-  static const Color insightText = Color(0xFFD4F299);
+  // Design-system surfaces (HLTH-App-Flows V1). matteInset is the tab-strip
+  // trough, matteElevated the selected tab pill, surfaceRaised the insight
+  // pill. dsTextSecondary is the DS's lighter secondary text.
+  static const Color matteInset = Color(0xFF100F15);
+  static const Color matteElevated = Color(0xFF202326);
+  static const Color surfaceRaised = Color(0xFF1C1C1C);
+  static const Color dsTextSecondary = Color(0xFFC7C8C8);
+
+  // Insight pill: a small positive-status dot on a raised surface.
+  static const Color insightDot = Color(0xFF2FD4A7);
 
   // Status dot for "Syncing…".
   static const Color syncDot = Color(0xFFC5E63D);
