@@ -32,16 +32,6 @@ jobs:
           channel: stable
           cache: true
 
-      # Enables Pages via the API from inside the workflow. Without this the
-      # deploy step 404s ("Ensure GitHub Pages has been enabled") whenever the
-      # repository's Pages site hasn't been fully provisioned — enablement:true
-      # provisions it on first run.
-      - name: Setup Pages
-        id: pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Resolve dependencies
         working-directory: gallery
         run: flutter pub get
