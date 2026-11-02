@@ -1,0 +1,21 @@
+name: hlth_charts
+description: Chart components for the HLTH health tracking app.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Added when you start drawing. fl_chart covers line/bar/scatter;
+  # the hypnogram and HRV baseline band will want a CustomPainter.
+  # fl_chart: ^0.69.0
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter: {}

@@ -1,0 +1,28 @@
+name: hlth_widgetbook
+description: Dev-only catalog for the HLTH chart components. Never published.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Pin these to whatever `flutter pub add widgetbook widgetbook_annotation`
+  # resolves to today rather than trusting the numbers below. Widgetbook v4
+  # is in beta and renames use-cases to stories; v3 is the stable API.
+  widgetbook: ^3.14.0
+  widgetbook_annotation: ^3.4.0
+
+  hlth_charts:
+    path: ../packages/hlth_charts
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  widgetbook_generator: ^3.11.0
+
+flutter:
+  uses-material-design: true
