@@ -14,7 +14,9 @@ enum ChartStatus {
   empty,
   error,
   permissionOff,
+  notMeasured,
   buildingBaseline,
+  partial,
   data,
 }
 
@@ -34,6 +36,8 @@ class ChartStateBody extends StatelessWidget {
     this.errorSubtitle = 'Check your connection and try again.',
     this.permissionTitle = 'Health access is off',
     this.permissionSubtitle = 'Allow access in Settings to show this chart.',
+    this.notMeasuredTitle = 'Not measured',
+    this.notMeasuredSubtitle = "This wasn't tracked. Wear your device to record it.",
     this.onRetry,
     this.onOpenSettings,
   });
@@ -47,6 +51,8 @@ class ChartStateBody extends StatelessWidget {
   final String errorSubtitle;
   final String permissionTitle;
   final String permissionSubtitle;
+  final String notMeasuredTitle;
+  final String notMeasuredSubtitle;
   final VoidCallback? onRetry;
   final VoidCallback? onOpenSettings;
 
@@ -54,8 +60,12 @@ class ChartStateBody extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case ChartStatus.data:
+      case ChartStatus.partial:
       case ChartStatus.buildingBaseline:
         return plot;
+      case ChartStatus.notMeasured:
+        return _StateMessage(
+            title: notMeasuredTitle, subtitle: notMeasuredSubtitle);
       case ChartStatus.loading:
         return Center(
           child: SizedBox(

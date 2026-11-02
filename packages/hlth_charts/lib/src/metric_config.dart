@@ -58,8 +58,14 @@ class MetricViewModel {
 
   final ChartStatus Function(TimeRange range) statusFor;
 
-  final Widget Function(TimeRange range, ValueChanged<ZoomDirection>? onZoom)
-      plotBuilder;
+  /// Builds the plot for a range and status. The status lets a metric swap
+  /// in gapped data for [ChartStatus.partial] vs. the full series for
+  /// [ChartStatus.data].
+  final Widget Function(
+    TimeRange range,
+    ChartStatus status,
+    ValueChanged<ZoomDirection>? onZoom,
+  ) plotBuilder;
 
   /// "How your SpO₂ changed".
   final String changeTitle;

@@ -34,6 +34,7 @@ class GalleryHome extends StatefulWidget {
 class _GalleryHomeState extends State<GalleryHome> {
   DemoMetric _metric = DemoMetric.hr;
   ScreenSize _size = _sizes[1];
+  ChartStatus _status = ChartStatus.data;
 
   static const _sizes = <ScreenSize>[
     ScreenSize('Compact', 360, 780),
@@ -66,11 +67,13 @@ class _GalleryHomeState extends State<GalleryHome> {
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: _PhoneFrame(
-                          key: ValueKey('${_metric.name}-${_size.label}'),
+                          key: ValueKey(
+                              '${_metric.name}-${_size.label}-${_status.name}'),
                           size: _size,
                           child: MetricScreen(
                             model: modelFor(_metric),
                             now: demoNow,
+                            statusOverride: _status,
                           ),
                         ),
                       ),
@@ -78,6 +81,10 @@ class _GalleryHomeState extends State<GalleryHome> {
                   ),
                 ],
               ),
+            ),
+            _StateRail(
+              selected: _status,
+              onSelect: (s) => setState(() => _status = s),
             ),
           ],
         ),
@@ -122,6 +129,44 @@ class _MetricRail extends StatelessWidget {
               label: label,
               selected: metric == selected,
               onTap: () => onSelect(metric),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StateRail extends StatelessWidget {
+  const _StateRail({required this.selected, required this.onSelect});
+  final ChartStatus selected;
+  final ValueChanged<ChartStatus> onSelect;
+
+  static const _items = <(ChartStatus, IconData, String)>[
+    (ChartStatus.data, Icons.show_chart, 'Active'),
+    (ChartStatus.partial, Icons.linear_scale, 'Partial'),
+    (ChartStatus.empty, Icons.inbox_outlined, 'Empty'),
+    (ChartStatus.notMeasured, Icons.sensors_off, 'Not meas.'),
+    (ChartStatus.buildingBaseline, Icons.hourglass_bottom, 'Baseline'),
+    (ChartStatus.loading, Icons.sync, 'Loading'),
+    (ChartStatus.skeleton, Icons.blur_on, 'Skeleton'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 96,
+      color: const Color(0xFF0E0E13),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          const Text('State', style: HlthChartText.axisLabel),
+          const SizedBox(height: 12),
+          for (final (status, icon, label) in _items)
+            _RailButton(
+              icon: icon,
+              label: label,
+              selected: status == selected,
+              onTap: () => onSelect(status),
             ),
         ],
       ),

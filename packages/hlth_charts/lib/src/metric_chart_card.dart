@@ -96,7 +96,8 @@ class MetricChartCard extends StatelessWidget {
               onOpenSettings: onOpenSettings,
             ),
           ),
-          if (status == ChartStatus.data) ...[
+          if (status == ChartStatus.data ||
+              status == ChartStatus.partial) ...[
             const SizedBox(height: 12),
             ChartLegend(items: legend),
           ],

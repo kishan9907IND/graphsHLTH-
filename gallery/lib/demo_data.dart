@@ -105,6 +105,20 @@ final List<SleepSegment> _sleep = () {
 double _mean(Iterable<double> xs) =>
     xs.isEmpty ? 0 : xs.reduce((a, b) => a + b) / xs.length;
 
+// For the "Partial / Gap" state: punch two holes (a recent few hours and a
+// couple of days last week) so a gap is visible at any range.
+bool _inHole(DateTime t) {
+  final a1 = demoNow.subtract(const Duration(days: 5));
+  final a2 = demoNow.subtract(const Duration(days: 3));
+  final b1 = demoNow.subtract(const Duration(hours: 8));
+  final b2 = demoNow.subtract(const Duration(hours: 6));
+  return (t.isAfter(a1) && t.isBefore(a2)) ||
+      (t.isAfter(b1) && t.isBefore(b2));
+}
+
+List<T> _gapped<T>(List<T> all, DateTime Function(T) ts) =>
+    [for (final a in all) if (!_inHole(ts(a))) a];
+
 List<T> _win<T>(List<T> all, TimeRange r, DateTime Function(T) ts) =>
     windowed(all, demoNow, r, ts);
 
@@ -200,8 +214,13 @@ MetricViewModel _hrvModel() => MetricViewModel(
           _win(_hrv, r, (x) => x.timestamp).isEmpty
               ? ChartStatus.empty
               : ChartStatus.data,
-      plotBuilder: (r, onZoom) =>
-          HrvPlot(readings: _hrv, now: demoNow, range: r, onZoom: onZoom),
+      plotBuilder: (r, status, onZoom) => HrvPlot(
+        readings:
+            status == ChartStatus.partial ? _gapped(_hrv, (x) => x.timestamp) : _hrv,
+        now: demoNow,
+        range: r,
+        onZoom: onZoom,
+      ),
       insightFor: (_) =>
           'Your HRV is trending above your 30-day baseline — good recovery.',
       changeTitle: 'How your HRV changed',
@@ -229,8 +248,13 @@ MetricViewModel _hrModel() => MetricViewModel(
       statusFor: (r) => _win(_hr, r, (x) => x.timestamp).isEmpty
           ? ChartStatus.empty
           : ChartStatus.data,
-      plotBuilder: (r, onZoom) =>
-          HrPlot(readings: _hr, now: demoNow, range: r, onZoom: onZoom),
+      plotBuilder: (r, status, onZoom) => HrPlot(
+        readings:
+            status == ChartStatus.partial ? _gapped(_hr, (x) => x.timestamp) : _hr,
+        now: demoNow,
+        range: r,
+        onZoom: onZoom,
+      ),
       insightFor: (_) =>
           'Two active-zone spikes today — both around your usual workout times.',
       cta: const CtaSpec(
@@ -263,8 +287,14 @@ MetricViewModel _stressModel() => MetricViewModel(
       statusFor: (r) => _win(_stress, r, (x) => x.timestamp).isEmpty
           ? ChartStatus.empty
           : ChartStatus.data,
-      plotBuilder: (r, onZoom) =>
-          StressPlot(readings: _stress, now: demoNow, range: r, onZoom: onZoom),
+      plotBuilder: (r, status, onZoom) => StressPlot(
+        readings: status == ChartStatus.partial
+            ? _gapped(_stress, (x) => x.timestamp)
+            : _stress,
+        now: demoNow,
+        range: r,
+        onZoom: onZoom,
+      ),
       insightFor: (_) =>
           'Most of your week sat in the low-to-moderate band.',
       changeTitle: 'How your stress changed',
@@ -295,8 +325,14 @@ MetricViewModel _spo2Model() => MetricViewModel(
       statusFor: (r) => _win(_spo2, r, (x) => x.timestamp).isEmpty
           ? ChartStatus.empty
           : ChartStatus.data,
-      plotBuilder: (r, onZoom) =>
-          Spo2Plot(readings: _spo2, now: demoNow, range: r, onZoom: onZoom),
+      plotBuilder: (r, status, onZoom) => Spo2Plot(
+        readings: status == ChartStatus.partial
+            ? _gapped(_spo2, (x) => x.timestamp)
+            : _spo2,
+        now: demoNow,
+        range: r,
+        onZoom: onZoom,
+      ),
       insightFor: (_) =>
           'SpO₂ stayed inside the healthy 95–100% range every night this week.',
       baseline: const BaselineSpec(
@@ -337,7 +373,11 @@ MetricViewModel _sleepModel() {
     statusLabel: 'On track',
     headerValue: (_) => '${totalMin ~/ 60}h ${totalMin % 60}m',
     statusFor: (_) => _sleep.isEmpty ? ChartStatus.empty : ChartStatus.data,
-    plotBuilder: (r, onZoom) => SleepPlot(segments: _sleep),
+    plotBuilder: (r, status, onZoom) => SleepPlot(
+      segments: status == ChartStatus.partial
+          ? _gapped(_sleep, (x) => x.start)
+          : _sleep,
+    ),
     insightFor: (_) =>
         'You got ${hm(inStage(SleepStage.deep))} of deep sleep — on the low side.',
     changeTitle: 'Sleep stages last night',

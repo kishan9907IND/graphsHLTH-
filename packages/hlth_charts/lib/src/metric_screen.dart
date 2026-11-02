@@ -32,12 +32,18 @@ class MetricScreen extends StatefulWidget {
     this.now,
     this.initialRange = TimeRange.week,
     this.onBack,
+    this.statusOverride,
   });
 
   final MetricViewModel model;
   final DateTime? now;
   final TimeRange initialRange;
   final VoidCallback? onBack;
+
+  /// Forces a display state regardless of the model's own [statusFor] — used
+  /// by the gallery's state switcher to preview Active / Partial / Empty /
+  /// Not measured, etc.
+  final ChartStatus? statusOverride;
 
   @override
   State<MetricScreen> createState() => _MetricScreenState();
@@ -75,8 +81,11 @@ class _MetricScreenState extends State<MetricScreen> {
   @override
   Widget build(BuildContext context) {
     final m = widget.model;
-    final status = m.statusFor(_range);
+    final status = widget.statusOverride ?? m.statusFor(_range);
+    final showData =
+        status == ChartStatus.data || status == ChartStatus.partial;
     final insight = m.insightFor?.call(_range);
+    final (pillLabel, pillColor) = _statePill(status, m);
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,12 +93,12 @@ class _MetricScreenState extends State<MetricScreen> {
       children: [
         MetricHeader(
           label: m.headerLabel,
-          value: m.headerValue(_range),
+          value: showData ? m.headerValue(_range) : null,
           unit: m.unit,
           averageCaption: m.averageCaption(_range),
           rangeValue: m.rangeValue?.call(_range),
-          statusLabel: m.statusLabel,
-          statusColor: m.statusColor,
+          statusLabel: pillLabel,
+          statusColor: pillColor,
         ),
         const SizedBox(height: 16),
         RangeSwitch(
@@ -124,14 +133,14 @@ class _MetricScreenState extends State<MetricScreen> {
               accent: m.accent,
               emptyTitle: m.emptyTitle,
               emptySubtitle: m.emptySubtitle,
-              plot: m.plotBuilder(_range, _zoom),
+              plot: m.plotBuilder(_range, status, _zoom),
             ),
           ),
-        if (status == ChartStatus.data && insight != null) ...[
+        if (showData && insight != null) ...[
           const SizedBox(height: 12),
           InsightPill(message: insight, onTap: () {}),
         ],
-        if (m.cta != null) ...[
+        if (showData && m.cta != null) ...[
           const SizedBox(height: 12),
           InsightCta(
             title: m.cta!.title,
@@ -141,8 +150,10 @@ class _MetricScreenState extends State<MetricScreen> {
             onTap: () {},
           ),
         ],
-        const SizedBox(height: 20),
-        ChangeTable(title: m.changeTitle, rows: m.changeRows(_range)),
+        if (showData) ...[
+          const SizedBox(height: 20),
+          ChangeTable(title: m.changeTitle, rows: m.changeRows(_range)),
+        ],
         const SizedBox(height: 24),
       ],
     );
@@ -173,6 +184,20 @@ class _MetricScreenState extends State<MetricScreen> {
     );
   }
 }
+
+/// The right-side header pill for each display state: its label and colour.
+(String?, Color) _statePill(ChartStatus s, MetricViewModel m) => switch (s) {
+      ChartStatus.data => (m.statusLabel ?? 'Active', m.statusColor),
+      ChartStatus.partial => ('Partial', HlthChartTokens.stress),
+      ChartStatus.empty => ('No data', HlthChartTokens.textMuted),
+      ChartStatus.notMeasured => ('Not measured', HlthChartTokens.textMuted),
+      ChartStatus.loading => ('Syncing', HlthChartTokens.textMuted),
+      ChartStatus.skeleton => ('Syncing', HlthChartTokens.textMuted),
+      ChartStatus.buildingBaseline =>
+        ('Building baseline', HlthChartTokens.textMuted),
+      ChartStatus.error => ('Error', HlthChartTokens.hr),
+      ChartStatus.permissionOff => ('Access off', HlthChartTokens.textMuted),
+    };
 
 class _ChartPanel extends StatelessWidget {
   const _ChartPanel({required this.child});
