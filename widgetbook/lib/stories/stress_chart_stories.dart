@@ -5,83 +5,53 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
 import '_synthetic.dart';
 
-@widgetbook.UseCase(name: 'Loading', type: StressChart)
-Widget stressLoading(BuildContext context) =>
-    _card(const _StressChartLive(state: ChartState.loading()));
-
-@widgetbook.UseCase(name: 'Skeleton', type: StressChart)
-Widget stressSkeleton(BuildContext context) =>
-    _card(const _StressChartLive(state: ChartState.skeleton()));
-
-@widgetbook.UseCase(name: 'Empty', type: StressChart)
-Widget stressEmpty(BuildContext context) => _card(
-      const _StressChartLive(
-        state: ChartState.empty(
-          message:
-              'Stress tracking needs 24h of wear to produce a baseline.',
-        ),
-      ),
-    );
-
-@widgetbook.UseCase(name: 'Partial — gaps', type: StressChart)
-Widget stressPartial(BuildContext context) {
-  final range = _rangeKnob(context);
-  return _card(
-    _StressChartLive(
-      state: ChartState.data(
-          withGaps(syntheticStress(days: range.days))),
-      range: range,
-    ),
+@widgetbook.UseCase(name: 'Chart card', type: StressPlot)
+Widget stressCard(BuildContext context) {
+  final status = context.knobs.list<ChartStatus>(
+    label: 'Status',
+    options: ChartStatus.values,
+    initialOption: ChartStatus.data,
+    labelBuilder: (s) => s.name,
   );
+  return _frame(_StressCard(status: status));
 }
 
-@widgetbook.UseCase(name: 'Full — populated', type: StressChart)
-Widget stressFull(BuildContext context) {
-  final range = _rangeKnob(context);
-  return _card(
-    _StressChartLive(
-      state: ChartState.data(syntheticStress(days: range.days)),
-      range: range,
-    ),
-  );
+class _StressCard extends StatefulWidget {
+  const _StressCard({required this.status});
+  final ChartStatus status;
+  @override
+  State<_StressCard> createState() => _StressCardState();
 }
 
-@widgetbook.UseCase(name: 'Error', type: StressChart)
-Widget stressError(BuildContext context) => _card(
-      const _StressChartLive(
-        state: ChartState.error(message: "Couldn't load stress data."),
-      ),
-    );
-
-class _StressChartLive extends StatelessWidget {
-  const _StressChartLive({
-    required this.state,
-    this.range = TimeRange.sevenDays,
-  });
-  final ChartState<StressReading> state;
-  final TimeRange range;
+class _StressCardState extends State<_StressCard> {
+  TimeRange _range = TimeRange.week;
 
   @override
   Widget build(BuildContext context) {
-    return ChartCard(
-      title: 'Stress',
-      subtitle: 'Last ${range.days} Day',
-      icon: Icons.self_improvement,
-      iconColor: HlthChartTokens.stress,
-      child: StressChart(state: state, now: storyNow, range: range),
+    final data = windowed(stressData, storyNow, _range, (r) => r.timestamp);
+    return MetricChartCard(
+      headerLabel: 'Average stress',
+      value: data.isEmpty
+          ? null
+          : meanOf(data.map((r) => r.index)).round().toString(),
+      unit: '',
+      rangeCaption: _range.rangeCaption(storyNow),
+      range: _range,
+      onRangeChanged: (r) => setState(() => _range = r),
+      status: widget.status,
+      accent: HlthChartTokens.stress,
+      legend: const [
+        LegendItem(label: 'Stress index', color: HlthChartTokens.stress),
+      ],
+      plot: StressPlot(
+        readings: stressData,
+        now: storyNow,
+        range: _range,
+        onZoom: (d) => setState(() => _range = stepRange(_range, d)),
+      ),
     );
   }
 }
 
-TimeRange _rangeKnob(BuildContext context) {
-  final sevenDays = context.knobs.boolean(
-    label: 'Seven days (off = three)',
-    initialValue: true,
-  );
-  return sevenDays ? TimeRange.sevenDays : TimeRange.threeDays;
-}
-
-Widget _card(Widget child) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: child,
-    );
+Widget _frame(Widget child) =>
+    Padding(padding: const EdgeInsets.all(16), child: child);

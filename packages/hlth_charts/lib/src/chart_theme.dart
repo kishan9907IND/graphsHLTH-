@@ -34,6 +34,22 @@ class HlthChartTokens {
   static const Color sleepRem = Color(0xFFC8B5FF);
   static const Color sleepAwake = Color(0xFFFF9B9B);
 
+  // Design-system series accent (the lime "Resting" line on the Chart/Card
+  // master) and the muted "Typical range" band behind it.
+  static const Color series = Color(0xFFC5E63D);
+  static const Color typicalBand = Color(0xFF5E6630);
+
+  // CTA pill buttons ("Try again", "Open Settings") — white fill, dark text.
+  static const Color ctaFill = Color(0xFFFFFFFF);
+  static const Color ctaText = Color(0xFF0A0A0F);
+
+  // Insight pill accent (the pale-lime highlight banner from the dashboard).
+  static const Color insightFill = Color(0xFF1F2616);
+  static const Color insightText = Color(0xFFD4F299);
+
+  // Status dot for "Syncing…".
+  static const Color syncDot = Color(0xFFC5E63D);
+
   // Scrub + handle
   static const Color scrubDot = Color(0xFFFFFFFF);
   static const Color scrubDotShadow = Color(0x4D7B5CFF);

@@ -1,0 +1,11 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Widgetbook v3's own addon/knob APIs emit deprecation notices pointing
+    # at v4 replacements. We pin v3 deliberately, so silence the churn.
+    deprecated_member_use: ignore
+  exclude:
+    - "**/*.g.dart"
+    - build/**
+    - web/**

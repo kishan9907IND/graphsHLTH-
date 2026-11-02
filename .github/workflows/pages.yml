@@ -1,9 +1,9 @@
 name: GitHub Pages
 
-# Fallback preview deploy — zero secrets, zero third-party account.
-# Deploys the Widgetbook catalog to GitHub Pages on every push to main or
-# this feature branch, so there is always a browser-tab preview URL even
-# before the Cloudflare secrets are wired up (which is the primary deploy).
+# Deploys the responsive Gallery (left metric rail + top screen-size tabs +
+# device frame) to GitHub Pages on every push to main or a feature branch.
+# Zero secrets, zero third-party account — this is the "open it in a new tab"
+# preview. The Widgetbook component catalog deploys separately to Cloudflare.
 
 on:
   push:
@@ -33,21 +33,21 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        working-directory: widgetbook
+        working-directory: gallery
         run: flutter pub get
 
-      - name: Generate story directories
-        working-directory: widgetbook
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Analyse
+        working-directory: gallery
+        run: flutter analyze
 
       # GitHub Pages serves at /<repo-name>/, so the base href must match.
       - name: Build web
-        working-directory: widgetbook
+        working-directory: gallery
         run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: widgetbook/build/web
+          path: gallery/build/web
 
   deploy:
     needs: build

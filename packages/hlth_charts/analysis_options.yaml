@@ -1,0 +1,9 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # withOpacity is deprecated in favour of withValues() (Flutter 3.27+),
+    # but this package targets 3.24+. Keep withOpacity and silence the churn.
+    deprecated_member_use: ignore
+  exclude:
+    - build/**

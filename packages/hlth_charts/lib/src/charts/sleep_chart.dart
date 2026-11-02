@@ -1,101 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../chart_shell.dart';
-import '../chart_state.dart';
 import '../chart_theme.dart';
 import '../readings/sleep_segment.dart';
 
-/// Hypnogram. Each night is a list of [SleepSegment]s and each segment
-/// paints as a vertical bar whose height encodes its stage (deep lowest,
-/// awake highest). This is the Sleep Quality card from the Figma.
-///
-/// Sleep is categorical — a scrub-value overlay would need to show a
-/// stage label, so we handle its own touch rather than reuse ScrubOverlay.
-class SleepChart extends StatefulWidget {
-  const SleepChart({
-    super.key,
-    required this.state,
-  });
+/// Plot-only hypnogram. Each [SleepSegment] paints as a bar whose height
+/// encodes its stage (deep lowest, awake highest). Sleep is categorical, so
+/// it owns its own touch handling — tap/drag highlights a segment and shows
+/// its stage label rather than a scalar value.
+class SleepPlot extends StatefulWidget {
+  const SleepPlot({super.key, required this.segments});
 
-  final ChartState<SleepSegment> state;
+  final List<SleepSegment> segments;
 
   @override
-  State<SleepChart> createState() => _SleepChartState();
+  State<SleepPlot> createState() => _SleepPlotState();
 }
 
-class _SleepChartState extends State<SleepChart> {
+class _SleepPlotState extends State<SleepPlot> {
   int? _selected;
 
   @override
   Widget build(BuildContext context) {
-    return ChartShell<SleepSegment>(
-      state: widget.state,
-      accent: HlthChartTokens.sleepRem,
-      emptyIcon: Icons.bedtime_outlined,
-      dataBuilder: (context, data) {
-        final segments = [...data.readings]
-          ..sort((a, b) => a.start.compareTo(b.start));
-        if (segments.isEmpty) {
-          return const Center(
-            child: Text(
-              'No sleep recorded for this window.',
-              style: HlthChartText.cardSubtitle,
-            ),
-          );
-        }
-        return LayoutBuilder(
-          builder: (context, c) {
-            final size = Size(c.maxWidth, c.maxHeight);
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => _updateFromDx(d.localPosition.dx, size.width,
-                  segments),
-              onPanStart: (d) => _updateFromDx(d.localPosition.dx, size.width,
-                  segments),
-              onPanUpdate: (d) => _updateFromDx(
-                  d.localPosition.dx, size.width, segments),
-              onPanEnd: (_) => _clearAfter(),
-              onTapUp: (_) => _clearAfter(),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CustomPaint(
-                    size: size,
-                    painter: _HypnogramPainter(
-                      segments: segments,
-                      selected: _selected,
-                    ),
-                  ),
-                  if (_selected != null)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      right: 0,
-                      child: Center(
-                        child: _StageBadge(stage: segments[_selected!].stage),
-                      ),
-                    ),
-                ],
+    final segments = [...widget.segments]
+      ..sort((a, b) => a.start.compareTo(b.start));
+    if (segments.isEmpty) {
+      return const Center(
+        child: Text('No data in this range.',
+            style: HlthChartText.cardSubtitle),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, c) {
+        final size = Size(c.maxWidth, c.maxHeight);
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (d) => _update(d.localPosition.dx, size.width, segments),
+          onPanStart: (d) => _update(d.localPosition.dx, size.width, segments),
+          onPanUpdate: (d) => _update(d.localPosition.dx, size.width, segments),
+          onPanEnd: (_) => _clear(),
+          onTapUp: (_) => _clear(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                size: size,
+                painter: _HypnogramPainter(
+                    segments: segments, selected: _selected),
               ),
-            );
-          },
+              if (_selected != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: Center(
+                    child: _StageBadge(stage: segments[_selected!].stage),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
   }
 
-  void _updateFromDx(double dx, double width, List<SleepSegment> segments) {
-    final total = segments.last.end
-        .difference(segments.first.start)
-        .inMicroseconds
-        .toDouble();
+  void _update(double dx, double width, List<SleepSegment> segments) {
     final anchor = segments.first.start;
-    final targetMicros = (dx / width) * total;
+    final total =
+        segments.last.end.difference(anchor).inMicroseconds.toDouble();
+    if (total <= 0) return;
+    final target = (dx / width) * total;
     for (var i = 0; i < segments.length; i++) {
-      final startM = segments[i].start.difference(anchor).inMicroseconds;
-      final endM = segments[i].end.difference(anchor).inMicroseconds;
-      if (targetMicros >= startM && targetMicros <= endM) {
+      final s = segments[i].start.difference(anchor).inMicroseconds;
+      final e = segments[i].end.difference(anchor).inMicroseconds;
+      if (target >= s && target <= e) {
         if (_selected != i) {
           HapticFeedback.selectionClick();
           setState(() => _selected = i);
@@ -105,7 +83,7 @@ class _SleepChartState extends State<SleepChart> {
     }
   }
 
-  void _clearAfter() {
+  void _clear() {
     final at = _selected;
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
@@ -123,75 +101,65 @@ class _HypnogramPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const insetTop = 10.0;
     const insetBottom = 22.0;
-    final plotTop = insetTop;
     final plotHeight = size.height - insetTop - insetBottom;
     final start = segments.first.start;
     final end = segments.last.end;
-    final totalMicros = end.difference(start).inMicroseconds.toDouble();
+    final total = end.difference(start).inMicroseconds.toDouble();
+    if (total <= 0) return;
 
     double xFor(DateTime t) =>
-        (t.difference(start).inMicroseconds / totalMicros) * size.width;
+        (t.difference(start).inMicroseconds / total) * size.width;
 
-    double heightFor(SleepStage s) {
-      // Awake = 95% of plot, Deep = 25% — a visual ramp that reads
-      // without a legend.
-      switch (s) {
-        case SleepStage.deep:
-          return plotHeight * 0.30;
-        case SleepStage.light:
-          return plotHeight * 0.55;
-        case SleepStage.rem:
-          return plotHeight * 0.80;
-        case SleepStage.awake:
-          return plotHeight * 0.95;
-      }
-    }
+    double heightFor(SleepStage s) => switch (s) {
+          SleepStage.deep => plotHeight * 0.30,
+          SleepStage.light => plotHeight * 0.55,
+          SleepStage.rem => plotHeight * 0.80,
+          SleepStage.awake => plotHeight * 0.95,
+        };
 
-    Color colorFor(SleepStage s) {
-      switch (s) {
-        case SleepStage.deep:
-          return HlthChartTokens.sleepDeep;
-        case SleepStage.light:
-          return HlthChartTokens.sleepLight;
-        case SleepStage.rem:
-          return HlthChartTokens.sleepRem;
-        case SleepStage.awake:
-          return HlthChartTokens.sleepAwake;
-      }
-    }
+    Color colorFor(SleepStage s) => switch (s) {
+          SleepStage.deep => HlthChartTokens.sleepDeep,
+          SleepStage.light => HlthChartTokens.sleepLight,
+          SleepStage.rem => HlthChartTokens.sleepRem,
+          SleepStage.awake => HlthChartTokens.sleepAwake,
+        };
 
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final left = xFor(seg.start);
       final right = xFor(seg.end);
       final h = heightFor(seg.stage);
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTRB(left + 0.5, plotTop + plotHeight - h,
-            (right - 0.5).clamp(left + 1, right), plotTop + plotHeight),
-        const Radius.circular(2),
+      final rect = Rect.fromLTRB(
+        left + 0.5,
+        insetTop + plotHeight - h,
+        (right - 0.5).clamp(left + 1, right),
+        insetTop + plotHeight,
       );
-      final paint = Paint()
-        ..color = selected == i
-            ? colorFor(seg.stage)
-            : colorFor(seg.stage).withOpacity(0.85);
-      canvas.drawRRect(rect, paint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(2)),
+        Paint()
+          ..color = selected == i
+              ? colorFor(seg.stage)
+              : colorFor(seg.stage).withOpacity(0.85),
+      );
     }
 
-    // Caption endpoints.
-    final startLabel = _fmt(segments.first.start);
+    _caption(canvas, _fmt(segments.first.start), Offset(0, size.height));
     final endLabel = _fmt(segments.last.end);
-    final startTp = TextPainter(
-      text: TextSpan(text: startLabel, style: HlthChartText.axisLabel),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final endTp = TextPainter(
-      text: TextSpan(text: endLabel, style: HlthChartText.axisLabel),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    startTp.paint(canvas, Offset(0, size.height - startTp.height));
+    final endTp = _layout(endLabel);
     endTp.paint(canvas,
         Offset(size.width - endTp.width, size.height - endTp.height));
   }
+
+  void _caption(Canvas canvas, String text, Offset bottomLeft) {
+    final tp = _layout(text);
+    tp.paint(canvas, Offset(bottomLeft.dx, bottomLeft.dy - tp.height));
+  }
+
+  TextPainter _layout(String text) => TextPainter(
+        text: TextSpan(text: text, style: HlthChartText.axisLabel),
+        textDirection: TextDirection.ltr,
+      )..layout();
 
   static String _fmt(DateTime d) {
     final h = d.hour % 12 == 0 ? 12 : d.hour % 12;

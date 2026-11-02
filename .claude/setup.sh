@@ -17,6 +17,7 @@ flutter config --no-analytics --enable-web
 flutter precache --web
 
 (cd packages/hlth_charts && flutter pub get)
+(cd gallery && flutter pub get)
 (cd widgetbook && flutter pub get && dart run build_runner build --delete-conflicting-outputs)
 
 echo "Flutter $(flutter --version | head -n1) ready."

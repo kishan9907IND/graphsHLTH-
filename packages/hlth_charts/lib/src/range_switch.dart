@@ -4,11 +4,15 @@ import 'package:flutter/services.dart';
 import 'chart_theme.dart';
 import 'time_range.dart';
 
-/// The pill-shaped segmented control from the Figma's Workout Stats card.
-/// Minimum touch target is 44pt per segment — if you add a fifth range,
-/// enforce the width constraint rather than letting the pills shrink.
-class TimeRangeToggle extends StatelessWidget {
-  const TimeRangeToggle({
+/// The Range Switch from the Figma design system — a full-width segmented
+/// control with Day / Week / Month / 3M. Selected segment is a white pill
+/// with dark text; the rest are transparent with muted labels.
+///
+/// Each segment is a 44pt-tall touch target. Switching fires a selection
+/// haptic — the same feedback the scrub uses, so the whole surface feels
+/// consistent under the thumb.
+class RangeSwitch extends StatelessWidget {
+  const RangeSwitch({
     super.key,
     required this.value,
     required this.onChanged,
@@ -25,21 +29,22 @@ class TimeRangeToggle extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: HlthChartTokens.cardSurfaceHigh,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           for (final range in ranges)
-            _Pill(
-              label: range.label,
-              selected: range == value,
-              onTap: () {
-                if (range != value) {
-                  HapticFeedback.selectionClick();
-                  onChanged(range);
-                }
-              },
+            Expanded(
+              child: _Segment(
+                label: range.tabLabel,
+                selected: range == value,
+                onTap: () {
+                  if (range != value) {
+                    HapticFeedback.selectionClick();
+                    onChanged(range);
+                  }
+                },
+              ),
             ),
         ],
       ),
@@ -47,8 +52,8 @@ class TimeRangeToggle extends StatelessWidget {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
+class _Segment extends StatelessWidget {
+  const _Segment({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -62,20 +67,17 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      shape: const StadiumBorder(),
+      borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 36),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          height: 40,
           decoration: BoxDecoration(
-            color: selected
-                ? HlthChartTokens.textPrimary
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
+            color: selected ? HlthChartTokens.textPrimary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
           ),
           alignment: Alignment.center,
           child: Text(

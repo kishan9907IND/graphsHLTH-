@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/painting.dart';
 
 /// Coordinate maths used by every chart painter in the package. Centralises
 /// the value→pixel transform so every chart agrees on how to position a
@@ -34,6 +34,11 @@ class ChartGeometry {
     final slot = plotWidth / count;
     return insets.left + slot * index + slot / 2;
   }
+
+  /// Map a 0..1 fraction across the window to an x pixel position. Used
+  /// when points are placed by timestamp (so gaps show as gaps) rather
+  /// than by index.
+  double xForFraction(double f) => insets.left + plotWidth * f.clamp(0.0, 1.0);
 
   double yForValue(double v) {
     final clamped = v.clamp(minY, maxY);

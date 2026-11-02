@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:hlth_charts/hlth_charts.dart';
 import 'package:widgetbook/widgetbook.dart';
@@ -5,80 +7,54 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
 import '_synthetic.dart';
 
-@widgetbook.UseCase(name: 'Loading', type: HrChart)
-Widget hrLoading(BuildContext context) =>
-    _card(const _HrChartLive(state: ChartState.loading()));
-
-@widgetbook.UseCase(name: 'Skeleton', type: HrChart)
-Widget hrSkeleton(BuildContext context) =>
-    _card(const _HrChartLive(state: ChartState.skeleton()));
-
-@widgetbook.UseCase(name: 'Empty', type: HrChart)
-Widget hrEmpty(BuildContext context) => _card(
-      const _HrChartLive(
-        state: ChartState.empty(
-          message: 'Put your watch back on to see your heart rate.',
-        ),
-      ),
-    );
-
-@widgetbook.UseCase(name: 'Partial — gaps', type: HrChart)
-Widget hrPartial(BuildContext context) {
-  final range = _rangeKnob(context);
-  final points = range == TimeRange.sevenDays ? 96 * 7 : 96 * 3;
-  return _card(
-    _HrChartLive(
-      state: ChartState.data(withGaps(syntheticHr(points: points))),
-      range: range,
-    ),
+@widgetbook.UseCase(name: 'Chart card', type: HrPlot)
+Widget hrCard(BuildContext context) {
+  final status = context.knobs.list<ChartStatus>(
+    label: 'Status',
+    options: ChartStatus.values,
+    initialOption: ChartStatus.data,
+    labelBuilder: (s) => s.name,
   );
+  return _frame(_HrCard(status: status));
 }
 
-@widgetbook.UseCase(name: 'Full — populated', type: HrChart)
-Widget hrFull(BuildContext context) {
-  final range = _rangeKnob(context);
-  final points = range == TimeRange.sevenDays ? 96 * 7 : 96 * 3;
-  return _card(
-    _HrChartLive(
-      state: ChartState.data(syntheticHr(points: points)),
-      range: range,
-    ),
-  );
+class _HrCard extends StatefulWidget {
+  const _HrCard({required this.status});
+  final ChartStatus status;
+  @override
+  State<_HrCard> createState() => _HrCardState();
 }
 
-@widgetbook.UseCase(name: 'Error', type: HrChart)
-Widget hrError(BuildContext context) => _card(
-      const _HrChartLive(
-        state: ChartState.error(message: "Couldn't load heart-rate data."),
-      ),
-    );
-
-class _HrChartLive extends StatelessWidget {
-  const _HrChartLive({required this.state, this.range = TimeRange.sevenDays});
-  final ChartState<HrReading> state;
-  final TimeRange range;
+class _HrCardState extends State<_HrCard> {
+  TimeRange _range = TimeRange.day;
 
   @override
   Widget build(BuildContext context) {
-    return ChartCard(
-      title: 'Heart Rate',
-      subtitle: 'Last ${range.days} Day',
-      icon: Icons.favorite,
-      iconColor: HlthChartTokens.hr,
-      child: HrChart(state: state, now: storyNow, range: range),
+    final data = windowed(hrData, storyNow, _range, (r) => r.timestamp);
+    return MetricChartCard(
+      headerLabel: 'Resting heart rate',
+      value: data.isEmpty
+          ? null
+          : data.map((r) => r.bpm).reduce(min).round().toString(),
+      unit: 'bpm',
+      rangeCaption: _range.rangeCaption(storyNow),
+      range: _range,
+      onRangeChanged: (r) => setState(() => _range = r),
+      status: widget.status,
+      accent: HlthChartTokens.hr,
+      legend: const [
+        LegendItem(label: 'Heart rate', color: HlthChartTokens.hr),
+        LegendItem(label: 'Active zone', color: HlthChartTokens.hrAccent),
+      ],
+      plot: HrPlot(
+        readings: hrData,
+        now: storyNow,
+        range: _range,
+        onZoom: (d) => setState(() => _range = stepRange(_range, d)),
+      ),
     );
   }
 }
 
-TimeRange _rangeKnob(BuildContext context) {
-  final sevenDays = context.knobs.boolean(
-    label: 'Seven days (off = three)',
-    initialValue: true,
-  );
-  return sevenDays ? TimeRange.sevenDays : TimeRange.threeDays;
-}
-
-Widget _card(Widget child) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: child,
-    );
+Widget _frame(Widget child) =>
+    Padding(padding: const EdgeInsets.all(16), child: child);

@@ -2,86 +2,65 @@ import 'dart:math';
 
 import 'package:hlth_charts/hlth_charts.dart';
 
-/// Deterministic synthetic data for the stories. Fixed seeds are
-/// non-negotiable — a chart that renders differently on each reload can't
-/// be reviewed, and a design-system catalog that mutates can't be diffed.
+/// Deterministic synthetic data for the stories (90 days of history so every
+/// range has something to show). Fixed seeds — a catalog that mutates on
+/// reload can't be reviewed or diffed.
 
 final DateTime storyNow = DateTime(2026, 11, 1, 20, 0);
 
-List<HrvReading> syntheticHrv({int days = 7, int seed = 7}) {
-  final rng = Random(seed);
-  final start = storyNow.subtract(Duration(days: days));
-  return List.generate(days, (i) {
-    final drift = 50 + sin(i / 4) * 6;
+final List<HrvReading> hrvData = () {
+  final rng = Random(7);
+  final start = storyNow.subtract(const Duration(days: 90));
+  return List.generate(90, (i) {
+    final drift = 50 + sin(i / 6) * 7;
     return HrvReading(
       start.add(Duration(days: i, hours: 7)),
       drift + rng.nextDouble() * 8 - 4,
     );
   });
-}
+}();
 
-List<HrReading> syntheticHr({int points = 96, int seed = 11}) {
-  // ~15-min intervals across a day. Sprinkle a few peak-zone callouts so
-  // the accent colour is exercised.
-  final rng = Random(seed);
-  final anchor =
-      DateTime(storyNow.year, storyNow.month, storyNow.day, 6, 0);
-  return List.generate(points, (i) {
-    final base = 72 + sin(i / 8) * 10 + rng.nextDouble() * 6 - 3;
-    final isPeak = i == 22 || i == 23 || i == 60 || i == 61;
-    final zone = isPeak ? HrZone.peak : HrZone.normal;
-    final bpm = isPeak ? base + 22 : base;
-    return HrReading(
-      anchor.add(Duration(minutes: 15 * i)),
-      bpm.clamp(50, 180).toDouble(),
-      zone: zone,
-    );
-  });
-}
+final List<HrReading> hrData = () {
+  final rng = Random(11);
+  final start = storyNow.subtract(const Duration(days: 90));
+  final out = <HrReading>[];
+  for (var h = 0; h < 90 * 24; h++) {
+    final t = start.add(Duration(hours: h));
+    final base = 64 + sin(t.hour / 24 * 2 * pi) * 10 + rng.nextDouble() * 6;
+    final peak = t.hour == 7 || t.hour == 18;
+    out.add(HrReading(t, (peak ? base + 40 : base).clamp(48, 180).toDouble(),
+        zone: peak ? HrZone.peak : HrZone.normal));
+  }
+  return out;
+}();
 
-List<StressReading> syntheticStress({int days = 7, int seed = 19}) {
-  final rng = Random(seed);
-  final start = storyNow.subtract(Duration(days: days - 1));
-  return List.generate(days, (i) {
-    final v = 32 + sin(i / 2) * 18 + rng.nextDouble() * 10;
+final List<StressReading> stressData = () {
+  final rng = Random(19);
+  final start = storyNow.subtract(const Duration(days: 90));
+  return List.generate(90, (i) {
+    final v = 34 + sin(i / 3) * 16 + rng.nextDouble() * 12;
     return StressReading(
-      start.add(Duration(days: i, hours: 20)),
-      v.clamp(0, 100).toDouble(),
-    );
+        start.add(Duration(days: i, hours: 20)), v.clamp(0, 100).toDouble());
   });
-}
+}();
 
-List<Spo2Reading> syntheticSpo2({int days = 7, int seed = 23}) {
-  final rng = Random(seed);
-  final start = storyNow.subtract(Duration(days: days - 1));
-  return List.generate(days, (i) {
-    final v = 97 + sin(i / 3) * 1.2 + rng.nextDouble() * 1.4 - 0.7;
+final List<Spo2Reading> spo2Data = () {
+  final rng = Random(23);
+  final start = storyNow.subtract(const Duration(days: 90));
+  return List.generate(90, (i) {
+    final v = 97 + sin(i / 5) * 1.1 + rng.nextDouble() * 1.4 - 0.7;
     return Spo2Reading(
-      start.add(Duration(days: i, hours: 7)),
-      v.clamp(90, 100).toDouble(),
-    );
+        start.add(Duration(days: i, hours: 7)), v.clamp(90, 100).toDouble());
   });
-}
+}();
 
-List<SleepSegment> syntheticSleep({int seed = 29}) {
-  final rng = Random(seed);
-  // ~8h night, 10pm → 6am. Build a plausible sequence of segments.
+final List<SleepSegment> sleepData = () {
+  final rng = Random(29);
   final start = DateTime(storyNow.year, storyNow.month, storyNow.day - 1, 22);
-  final stages = <SleepStage>[
-    SleepStage.light,
-    SleepStage.deep,
-    SleepStage.light,
-    SleepStage.rem,
-    SleepStage.awake,
-    SleepStage.light,
-    SleepStage.deep,
-    SleepStage.rem,
-    SleepStage.light,
-    SleepStage.rem,
-    SleepStage.light,
-    SleepStage.awake,
-    SleepStage.light,
-    SleepStage.rem,
+  const stages = [
+    SleepStage.light, SleepStage.deep, SleepStage.light, SleepStage.rem,
+    SleepStage.awake, SleepStage.light, SleepStage.deep, SleepStage.rem,
+    SleepStage.light, SleepStage.rem, SleepStage.light, SleepStage.awake,
   ];
   var cursor = start;
   final out = <SleepSegment>[];
@@ -97,15 +76,30 @@ List<SleepSegment> syntheticSleep({int seed = 29}) {
     cursor = end;
   }
   return out;
+}();
+
+/// Punch a middle chunk out of a series for the "partial / broken with gaps"
+/// knob setting.
+List<T> withGaps<T>(List<T> items) {
+  if (items.length < 6) return items;
+  final cut = items.length ~/ 3;
+  return [...items.take(cut), ...items.skip(cut * 2)];
 }
 
-/// Mutilate a series so the "partial / broken with gaps" story has
-/// something to show: punch out a middle chunk, keeping the endpoints.
-List<T> withGaps<T>(List<T> items) {
-  if (items.length < 5) return items;
-  final cut = items.length ~/ 3;
-  return [
-    ...items.take(cut),
-    ...items.skip(cut * 2),
+/// Step the range in/out for a pinch gesture — inward drills toward 1D.
+TimeRange stepRange(TimeRange r, ZoomDirection d) {
+  const order = [
+    TimeRange.threeMonths,
+    TimeRange.month,
+    TimeRange.week,
+    TimeRange.day,
   ];
+  final i = order.indexOf(r);
+  final n = d == ZoomDirection.inward
+      ? (i + 1).clamp(0, order.length - 1)
+      : (i - 1).clamp(0, order.length - 1);
+  return order[n];
 }
+
+double meanOf(Iterable<double> xs) =>
+    xs.isEmpty ? 0 : xs.reduce((a, b) => a + b) / xs.length;
