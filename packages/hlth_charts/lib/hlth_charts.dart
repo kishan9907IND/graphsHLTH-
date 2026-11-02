@@ -20,12 +20,16 @@ export 'src/time_range.dart' show TimeRange, AxisTick, windowed, splitOnGaps;
 export 'src/range_switch.dart';
 export 'src/chart_legend.dart';
 export 'src/metric_header.dart';
+export 'src/period_navigator.dart';
+export 'src/change_table.dart';
+export 'src/baseline_progress.dart';
 export 'src/insight_pill.dart';
 export 'src/stats_card.dart';
 export 'src/skeleton_box.dart' show SkeletonBox, ChartSkeletonBody;
 export 'src/scrub_overlay.dart' show ScrubPoint, ZoomDirection;
 
 // Unified format
+export 'src/chart_state_body.dart' show ChartStatus, ChartStateBody;
 export 'src/metric_chart_card.dart';
 export 'src/metric_config.dart';
 export 'src/metric_screen.dart';

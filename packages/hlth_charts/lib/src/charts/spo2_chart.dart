@@ -105,6 +105,12 @@ class _Spo2Painter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    paintYGrid(
+      canvas,
+      geometry,
+      values: [geometry.minY, (geometry.minY + geometry.maxY) / 2, 100],
+      format: (v) => v.toStringAsFixed(0),
+    );
     paintBand(
         canvas, geometry, healthyMin, healthyMax, HlthChartTokens.spo2);
     paintSeries(canvas, geometry, runs, HlthChartTokens.spo2, fill: false);

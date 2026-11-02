@@ -32,18 +32,20 @@ void paintAxisTicks(
   }
 }
 
-/// Faint horizontal gridlines with value labels on the left — the Y axis
-/// "numbers as required". Drawn at min / mid / max of the plotted range.
+/// Faint horizontal gridlines with value labels on the right — the Y axis
+/// "numbers as required", as on the SpO₂ screen. Drawn at the given values
+/// (defaults to min / mid / max of the plotted range).
 void paintYGrid(
   Canvas canvas,
   ChartGeometry g, {
+  List<double>? values,
   String Function(double)? format,
 }) {
   final fmt = format ?? (v) => v.toStringAsFixed(0);
   final line = Paint()
     ..color = HlthChartTokens.axis.withOpacity(0.5)
     ..strokeWidth = 1;
-  for (final v in [g.minY, (g.minY + g.maxY) / 2, g.maxY]) {
+  for (final v in values ?? [g.minY, (g.minY + g.maxY) / 2, g.maxY]) {
     final y = g.yForValue(v);
     canvas.drawLine(
       Offset(g.insets.left, y),
@@ -54,7 +56,10 @@ void paintYGrid(
       text: TextSpan(text: fmt(v), style: HlthChartText.axisLabel),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(g.insets.left, y - tp.height - 1));
+    tp.paint(
+      canvas,
+      Offset(g.size.width - g.insets.right - tp.width, y - tp.height - 1),
+    );
   }
 }
 

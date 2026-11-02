@@ -7,7 +7,7 @@
 /// to it.
 enum TimeRange {
   day(shortLabel: '1D', tabLabel: 'Day'),
-  week(shortLabel: '1W', tabLabel: 'Week'),
+  week(shortLabel: '7D', tabLabel: 'Week'),
   month(shortLabel: '1M', tabLabel: 'Month'),
   threeMonths(shortLabel: '3M', tabLabel: '3M');
 

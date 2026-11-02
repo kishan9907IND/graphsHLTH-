@@ -1,9 +1,9 @@
 name: GitHub Pages
 
-# Deploys the responsive Gallery (left metric rail + top screen-size tabs +
-# device frame) to GitHub Pages on every push to main or a feature branch.
-# Zero secrets, zero third-party account — this is the "open it in a new tab"
-# preview. The Widgetbook component catalog deploys separately to Cloudflare.
+# Builds the responsive Gallery and publishes it to the `gh-pages` branch.
+# Point Settings → Pages → Source at "Deploy from a branch" → gh-pages (root).
+# This classic branch method avoids the Actions-source site-creation API,
+# which the workflow token can't call on this repo.
 
 on:
   push:
@@ -17,12 +17,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  build:
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,21 +38,21 @@ jobs:
         working-directory: gallery
         run: flutter analyze
 
-      # GitHub Pages serves at /<repo-name>/, so the base href must match.
+      # Pages serves a project site at /<repo-name>/, so base-href must match.
       - name: Build web
         working-directory: gallery
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+        run: flutter build web --release --no-web-resources-cdn --base-href "/${{ github.event.repository.name }}/"
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: gallery/build/web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # .nojekyll stops GitHub Pages' Jekyll from dropping Flutter's _* files.
+      - name: Publish to gh-pages
+        working-directory: gallery/build/web
+        run: |
+          touch .nojekyll
+          git init -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy ${{ github.sha }}"
+          git push -f \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
+            gh-pages
