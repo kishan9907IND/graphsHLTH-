@@ -1,0 +1,60 @@
+name: GitHub Pages
+
+# Fallback preview deploy — zero secrets, zero third-party account.
+# Deploys the Widgetbook catalog to GitHub Pages on every push to main or
+# this feature branch, so there is always a browser-tab preview URL even
+# before the Cloudflare secrets are wired up (which is the primary deploy).
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        working-directory: widgetbook
+        run: flutter pub get
+
+      - name: Generate story directories
+        working-directory: widgetbook
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # GitHub Pages serves at /<repo-name>/, so the base href must match.
+      - name: Build web
+        working-directory: widgetbook
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: widgetbook/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

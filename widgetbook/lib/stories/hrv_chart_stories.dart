@@ -1,115 +1,106 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:hlth_charts/hlth_charts.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
+import '_synthetic.dart';
+
 // One use-case per MEANINGFUL STATE, not per screen.
 //
-// "Empty — first launch" and "Empty — sensor disconnected" look identical
-// today. They are still separate entries, because the moment someone decides
-// one of them should say something different, the catalog already has a slot
-// for it. Organise by state and the discussion stays about behaviour.
+// The populated stories expose the TimeRange knob so a designer can flip
+// between 3D and 7D in the review and watch the axis + density update.
 
 @widgetbook.UseCase(name: 'Loading', type: HrvChart)
-Widget hrvLoading(BuildContext context) => _frame(
-      const HrvChart(state: ChartState.loading()),
-    );
+Widget hrvLoading(BuildContext context) =>
+    _card(const HrvChartLive(state: ChartState.loading()));
+
+@widgetbook.UseCase(name: 'Skeleton', type: HrvChart)
+Widget hrvSkeleton(BuildContext context) =>
+    _card(const HrvChartLive(state: ChartState.skeleton()));
 
 @widgetbook.UseCase(name: 'Empty — first launch', type: HrvChart)
-Widget hrvEmptyFirstLaunch(BuildContext context) => _frame(
-      const HrvChart(
+Widget hrvEmpty(BuildContext context) => _card(
+      const HrvChartLive(
         state: ChartState.empty(
           message: 'Wear your device overnight to see your HRV baseline.',
         ),
       ),
     );
 
-@widgetbook.UseCase(name: 'Empty — sensor disconnected', type: HrvChart)
-Widget hrvEmptyDisconnected(BuildContext context) => _frame(
-      const HrvChart(
-        state: ChartState.empty(
-          message: 'No readings since Tuesday. Check your device connection.',
-        ),
-      ),
-    );
+@widgetbook.UseCase(name: 'Partial — gaps in the week', type: HrvChart)
+Widget hrvPartial(BuildContext context) {
+  final range = _rangeKnob(context);
+  return _card(
+    HrvChartLive(
+      state: ChartState.data(
+          withGaps(syntheticHrv(days: range.days + 1))),
+      range: range,
+    ),
+  );
+}
 
-/// The awkward one. A single point has no trend, no baseline, no band.
-/// Decide here what the axis does rather than discovering it in production.
-@widgetbook.UseCase(name: 'Single datapoint', type: HrvChart)
-Widget hrvSinglePoint(BuildContext context) => _frame(
-      HrvChart(
-        state: ChartState.data([
-          HrvReading(DateTime(2026, 11, 1), 48),
-        ]),
-      ),
-    );
-
-@widgetbook.UseCase(name: 'Sparse — gaps in the week', type: HrvChart)
-Widget hrvSparse(BuildContext context) => _frame(
-      HrvChart(
-        state: ChartState.data([
-          HrvReading(DateTime(2026, 10, 26), 52),
-          HrvReading(DateTime(2026, 10, 27), 47),
-          // deliberate three-day gap
-          HrvReading(DateTime(2026, 10, 31), 61),
-          HrvReading(DateTime(2026, 11, 1), 58),
-        ]),
-      ),
-    );
-
-@widgetbook.UseCase(name: 'Populated — 30 days', type: HrvChart)
-Widget hrvPopulated(BuildContext context) {
-  // Knobs are the live-toggle drawer. During a review, drag these instead
-  // of arguing in the abstract about whether the band is too tight.
-  final showBaseline = context.knobs.boolean(
-    label: 'Show baseline band',
+@widgetbook.UseCase(name: 'Full — populated', type: HrvChart)
+Widget hrvFull(BuildContext context) {
+  final range = _rangeKnob(context);
+  final band = context.knobs.boolean(
+    label: 'Baseline band',
     initialValue: true,
   );
-  final baselineDays = context.knobs.int.slider(
-    label: 'Baseline window (days)',
-    initialValue: 7,
-    min: 3,
-    max: 14,
-  );
-  final snapToPoint = context.knobs.boolean(
-    label: 'Scrub snaps to datapoint',
-    initialValue: true,
-  );
-
-  return _frame(
-    HrvChart(
-      state: ChartState.data(_syntheticMonth()),
-      showBaselineBand: showBaseline,
-      baselineWindowDays: baselineDays,
-      snapScrubToDatapoint: snapToPoint,
+  return _card(
+    HrvChartLive(
+      state: ChartState.data(syntheticHrv(days: range.days + 1)),
+      range: range,
+      showBaselineBand: band,
     ),
   );
 }
 
 @widgetbook.UseCase(name: 'Error', type: HrvChart)
-Widget hrvError(BuildContext context) => _frame(
-      const HrvChart(
+Widget hrvError(BuildContext context) => _card(
+      const HrvChartLive(
         state: ChartState.error(message: "Couldn't load HRV data."),
       ),
     );
 
-/// Every story sits in the same padded card so comparisons across states
-/// are honest. Differences you see are the component, not the frame.
-Widget _frame(Widget child) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: SizedBox(height: 220, child: child),
-    );
-
-List<HrvReading> _syntheticMonth() {
-  final rng = Random(7); // fixed seed — stories must be deterministic
-  final start = DateTime(2026, 10, 3);
-  return List.generate(30, (i) {
-    final drift = 50 + sin(i / 4) * 6;
-    return HrvReading(
-      start.add(Duration(days: i)),
-      drift + rng.nextDouble() * 8 - 4,
-    );
+/// A tiny host that re-renders the chart when the range knob changes,
+/// wrapped in the standard ChartCard so every story sees the real chrome.
+class HrvChartLive extends StatelessWidget {
+  const HrvChartLive({
+    super.key,
+    required this.state,
+    this.range = TimeRange.sevenDays,
+    this.showBaselineBand = true,
   });
+  final ChartState<HrvReading> state;
+  final TimeRange range;
+  final bool showBaselineBand;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChartCard(
+      title: 'HRV',
+      subtitle: 'Last ${range.days} Day',
+      icon: Icons.favorite_border,
+      iconColor: HlthChartTokens.hrv,
+      child: HrvChart(
+        state: state,
+        now: storyNow,
+        range: range,
+        showBaselineBand: showBaselineBand,
+      ),
+    );
+  }
 }
+
+TimeRange _rangeKnob(BuildContext context) {
+  final sevenDays = context.knobs.boolean(
+    label: 'Seven days (off = three)',
+    initialValue: true,
+  );
+  return sevenDays ? TimeRange.sevenDays : TimeRange.threeDays;
+}
+
+Widget _card(Widget child) => Padding(
+      padding: const EdgeInsets.all(16),
+      child: child,
+    );

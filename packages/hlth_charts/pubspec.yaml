@@ -1,6 +1,6 @@
 name: hlth_charts
 description: Chart components for the HLTH health tracking app.
-version: 0.0.1
+version: 0.0.2
 publish_to: none
 
 environment:
@@ -9,9 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Added when you start drawing. fl_chart covers line/bar/scatter;
-  # the hypnogram and HRV baseline band will want a CustomPainter.
-  # fl_chart: ^0.69.0
+  # Charts are intentionally pure CustomPainter — fl_chart was evaluated
+  # and dropped: its touch handling is tap-centred (desktop metaphor), and
+  # the Figma's scrub interaction is a touch-drag with snap and haptics.
+  # Owning the paint keeps that integration clean. If you later want
+  # axis-ticks or legend helpers, fl_chart: ^0.69.0 slots in easily.
 
 dev_dependencies:
   flutter_lints: ^5.0.0

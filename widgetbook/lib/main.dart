@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hlth_charts/hlth_charts.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
@@ -17,9 +18,9 @@ class HlthWidgetbook extends StatelessWidget {
     return Widgetbook.material(
       directories: directories,
       addons: [
-        // Real device frames matter here. A chart that reads fine at 430pt
-        // falls apart on a 375pt SE, and that is exactly the kind of thing
-        // the review should catch before anyone grades colour.
+        // SE first — a chart that reads on the smallest supported screen
+        // reads everywhere. If it breaks on SE, catch it before anyone
+        // starts grading colour on the Pro Max.
         DeviceFrameAddon(
           devices: [
             Devices.ios.iPhoneSE,
@@ -27,16 +28,21 @@ class HlthWidgetbook extends StatelessWidget {
             Devices.ios.iPhone13ProMax,
             Devices.android.samsungGalaxyS20,
           ],
-          initialDevice: Devices.ios.iPhone13,
+          initialDevice: Devices.ios.iPhoneSE,
         ),
         ThemeAddon(
           themes: [
+            // Dark first — the Figma was mocked dark and dark is the
+            // default context the real app ships in.
+            WidgetbookTheme(name: 'HLTH Dark', data: hlthDarkTheme()),
             WidgetbookTheme(name: 'Light', data: ThemeData.light()),
-            WidgetbookTheme(name: 'Dark', data: ThemeData.dark()),
           ],
           themeBuilder: (context, theme, child) => Theme(
             data: theme,
-            child: child,
+            child: ColoredBox(
+              color: theme.scaffoldBackgroundColor,
+              child: child,
+            ),
           ),
         ),
         // Accessibility text sizes break chart labels before they break
