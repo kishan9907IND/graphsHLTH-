@@ -100,8 +100,9 @@ class _HypnogramPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const insetTop = 10.0;
-    const insetBottom = 22.0;
+    const insetBottom = 24.0;
     final plotHeight = size.height - insetTop - insetBottom;
+    final baseline = insetTop + plotHeight;
     final start = segments.first.start;
     final end = segments.last.end;
     final total = end.difference(start).inMicroseconds.toDouble();
@@ -110,11 +111,13 @@ class _HypnogramPainter extends CustomPainter {
     double xFor(DateTime t) =>
         (t.difference(start).inMicroseconds / total) * size.width;
 
+    // Each stage fills from the baseline up to its band: deep lowest, awake
+    // highest — so the ribbon's silhouette reads as sleep depth over time.
     double heightFor(SleepStage s) => switch (s) {
           SleepStage.deep => plotHeight * 0.30,
-          SleepStage.light => plotHeight * 0.55,
-          SleepStage.rem => plotHeight * 0.80,
-          SleepStage.awake => plotHeight * 0.95,
+          SleepStage.light => plotHeight * 0.52,
+          SleepStage.rem => plotHeight * 0.74,
+          SleepStage.awake => plotHeight * 0.96,
         };
 
     Color colorFor(SleepStage s) => switch (s) {
@@ -124,49 +127,53 @@ class _HypnogramPainter extends CustomPainter {
           SleepStage.awake => HlthChartTokens.sleepAwake,
         };
 
+    // Dashed vertical time gridlines + 24h labels at ~4 evenly spaced ticks.
+    final grid = Paint()
+      ..color = HlthChartTokens.axis.withOpacity(0.6)
+      ..strokeWidth = 1;
+    const ticks = 4;
+    for (var i = 0; i <= ticks; i++) {
+      final t =
+          start.add(Duration(microseconds: (total * i / ticks).round()));
+      final x = xFor(t).clamp(0.0, size.width);
+      for (var y = insetTop; y < baseline; y += 6) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + 3), grid);
+      }
+      final tp = TextPainter(
+        text: TextSpan(text: _fmt(t), style: HlthChartText.axisLabel),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final lx = (x - tp.width / 2).clamp(0.0, size.width - tp.width);
+      tp.paint(canvas, Offset(lx, size.height - tp.height));
+    }
+
+    // Ribbon columns. Positioned by timestamp, so a missing stretch (a gap
+    // in the data) stays blank rather than being stretched over — that's the
+    // "show the gaps" behaviour. A 0.75px inset on each side segments the
+    // ribbon into distinct bars.
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
-      final left = xFor(seg.start);
-      final right = xFor(seg.end);
+      final left = xFor(seg.start) + 0.75;
+      final right = xFor(seg.end) - 0.75;
+      if (right <= left) continue;
       final h = heightFor(seg.stage);
-      final rect = Rect.fromLTRB(
-        left + 0.5,
-        insetTop + plotHeight - h,
-        (right - 0.5).clamp(left + 1, right),
-        insetTop + plotHeight,
+      final rect = RRect.fromRectAndCorners(
+        Rect.fromLTRB(left, baseline - h, right, baseline),
+        topLeft: const Radius.circular(3),
+        topRight: const Radius.circular(3),
       );
       canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(2)),
+        rect,
         Paint()
           ..color = selected == i
               ? colorFor(seg.stage)
-              : colorFor(seg.stage).withOpacity(0.85),
+              : colorFor(seg.stage).withOpacity(0.92),
       );
     }
-
-    _caption(canvas, _fmt(segments.first.start), Offset(0, size.height));
-    final endLabel = _fmt(segments.last.end);
-    final endTp = _layout(endLabel);
-    endTp.paint(canvas,
-        Offset(size.width - endTp.width, size.height - endTp.height));
   }
 
-  void _caption(Canvas canvas, String text, Offset bottomLeft) {
-    final tp = _layout(text);
-    tp.paint(canvas, Offset(bottomLeft.dx, bottomLeft.dy - tp.height));
-  }
-
-  TextPainter _layout(String text) => TextPainter(
-        text: TextSpan(text: text, style: HlthChartText.axisLabel),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-  static String _fmt(DateTime d) {
-    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
-    final m = d.minute.toString().padLeft(2, '0');
-    final p = d.hour < 12 ? 'am' : 'pm';
-    return '$h.$m$p';
-  }
+  static String _fmt(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   bool shouldRepaint(_HypnogramPainter old) =>

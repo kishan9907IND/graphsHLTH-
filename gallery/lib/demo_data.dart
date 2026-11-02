@@ -70,7 +70,8 @@ final List<SleepSegment> _sleep = () {
   ];
   var cursor = start;
   final out = <SleepSegment>[];
-  for (final s in stages) {
+  for (var idx = 0; idx < stages.length; idx++) {
+    final s = stages[idx];
     final mins = switch (s) {
       SleepStage.awake => 2 + rng.nextInt(4),
       SleepStage.rem => 15 + rng.nextInt(20),
@@ -80,6 +81,8 @@ final List<SleepSegment> _sleep = () {
     final end = cursor.add(Duration(minutes: mins));
     out.add(SleepSegment(start: cursor, end: end, stage: s));
     cursor = end;
+    // A mid-night sensor gap so the ribbon shows a real break, not a stretch.
+    if (idx == 4) cursor = cursor.add(const Duration(minutes: 22));
   }
   return out;
 }();
