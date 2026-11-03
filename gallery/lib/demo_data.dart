@@ -232,18 +232,32 @@ MetricViewModel _hrModel() => MetricViewModel(
       title: 'Heart Rate',
       icon: Icons.favorite,
       accent: HlthChartTokens.hr,
-      headerLabel: 'Resting heart rate',
+      headerLabel: 'Heart rate',
       unit: 'bpm',
       legend: const [
         LegendItem(label: 'Heart rate', color: HlthChartTokens.hr),
         LegendItem(label: 'Active zone', color: HlthChartTokens.hrAccent),
       ],
-      averageCaption: _avgCaption,
-      rangeValue: (_) => '60–100 bpm',
-      statusLabel: 'Normal Range',
+      averageCaption: (r) => switch (r) {
+        TimeRange.day => 'Avg today',
+        TimeRange.week => '7-day avg',
+        TimeRange.month => '30-day avg',
+        TimeRange.threeMonths => '90-day avg',
+      },
+      // Right column shows the multi-day baseline range, like Apple Health.
+      rangeCaption: '7-day baseline',
+      rangeValue: (_) {
+        final d = _win(_hr, TimeRange.week, (x) => x.timestamp)
+            .map((x) => x.bpm)
+            .toList();
+        if (d.isEmpty) return null;
+        return '${d.reduce(min).round()}–${d.reduce(max).round()} bpm';
+      },
+      statusLabel: null,
       headerValue: (r) {
         final d = _win(_hr, r, (x) => x.timestamp).map((x) => x.bpm).toList();
-        return d.isEmpty ? null : d.reduce(min).round().toString();
+        if (d.isEmpty) return null;
+        return '${d.reduce(min).round()}–${d.reduce(max).round()}';
       },
       statusFor: (r) => _win(_hr, r, (x) => x.timestamp).isEmpty
           ? ChartStatus.empty

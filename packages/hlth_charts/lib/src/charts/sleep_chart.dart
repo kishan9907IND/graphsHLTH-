@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -187,19 +189,37 @@ class _SleepTimelinePainter extends CustomPainter {
       tp.paint(canvas, Offset(0, yc - tp.height / 2));
     }
 
-    // Connectors first (under the blocks) at each contiguous transition.
+    // Gradient transition ramps (sleep_chart style): each contiguous
+    // transition is a vertical bar the same thickness as the capsules,
+    // filled with a gradient between the two stage colours, so the lanes
+    // read as one continuous ribbon weaving between stages. Drawn under the
+    // capsules so the rounded caps sit on top.
     for (var i = 0; i < segments.length - 1; i++) {
       final gap = segments[i + 1].start.difference(segments[i].end);
-      if (gap > _gapThreshold) continue; // real gap → no connector
+      if (gap > _gapThreshold) continue; // real gap → no ramp
       final x = xFor(segments[i].end);
       final y1 = laneCenter(segments[i].stage);
       final y2 = laneCenter(segments[i + 1].stage);
-      canvas.drawLine(
-        Offset(x, y1),
-        Offset(x, y2),
-        Paint()
-          ..color = HlthChartTokens.textMuted.withOpacity(0.6)
-          ..strokeWidth = 1.5,
+      final top = math.min(y1, y2);
+      final bot = math.max(y1, y2);
+      final topColor =
+          _stageColor(y1 <= y2 ? segments[i].stage : segments[i + 1].stage);
+      final botColor =
+          _stageColor(y1 <= y2 ? segments[i + 1].stage : segments[i].stage);
+      final rect = Rect.fromLTRB(
+        x - blockH / 2,
+        top - blockH / 2,
+        x + blockH / 2,
+        bot + blockH / 2,
+      );
+      final shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [topColor, botColor],
+      ).createShader(rect);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(blockH / 2)),
+        Paint()..shader = shader,
       );
     }
 

@@ -97,6 +97,7 @@ class _MetricScreenState extends State<MetricScreen> {
           unit: m.unit,
           averageCaption: m.averageCaption(_range),
           rangeValue: m.rangeValue?.call(_range),
+          rangeCaption: m.rangeCaption,
           statusLabel: pillLabel,
           statusColor: pillColor,
         ),
@@ -187,7 +188,7 @@ class _MetricScreenState extends State<MetricScreen> {
 
 /// The right-side header pill for each display state: its label and colour.
 (String?, Color) _statePill(ChartStatus s, MetricViewModel m) => switch (s) {
-      ChartStatus.data => (m.statusLabel ?? 'Active', m.statusColor),
+      ChartStatus.data => (m.statusLabel, m.statusColor),
       ChartStatus.partial => ('Partial', HlthChartTokens.stress),
       ChartStatus.empty => ('No data', HlthChartTokens.textMuted),
       ChartStatus.notMeasured => ('Not measured', HlthChartTokens.textMuted),

@@ -16,6 +16,7 @@ class MetricHeader extends StatelessWidget {
     required this.unit,
     required this.averageCaption,
     this.rangeValue,
+    this.rangeCaption,
     this.statusLabel,
     this.statusColor = HlthChartTokens.series,
   });
@@ -35,6 +36,10 @@ class MetricHeader extends StatelessWidget {
 
   /// Right-column reference range, e.g. "95–100 %". Null hides the column.
   final String? rangeValue;
+
+  /// Small label above the right-column value, e.g. "7-day baseline". Null
+  /// shows the value with no caption.
+  final String? rangeCaption;
 
   /// Right-column status pill text, e.g. "Normal Range". Null hides the pill.
   final String? statusLabel;
@@ -77,6 +82,10 @@ class MetricHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (rangeCaption != null) ...[
+                Text(rangeCaption!, style: HlthChartText.cardSubtitle),
+                const SizedBox(height: 4),
+              ],
               if (rangeValue != null)
                 Text(
                   rangeValue!,

@@ -26,6 +26,7 @@ class MetricViewModel {
     required this.changeTitle,
     required this.changeRows,
     this.rangeValue,
+    this.rangeCaption,
     this.statusLabel,
     this.statusColor = HlthChartTokens.series,
     this.baseline,
@@ -49,10 +50,14 @@ class MetricViewModel {
   /// Big value for a range, or null for the "– –" treatment.
   final String? Function(TimeRange range) headerValue;
 
-  /// Right-column reference range ("95–100 %"), per range. Optional.
+  /// Right-column reference range ("95–100 %" / "80–124 BPM"), per range.
   final String? Function(TimeRange range)? rangeValue;
 
-  /// Right-column status pill ("Normal Range"). Static across ranges.
+  /// Small label above the right-column value ("7-day baseline"). Optional.
+  final String? rangeCaption;
+
+  /// Right-column status pill ("Normal Range"). Static across ranges; null
+  /// hides the pill in the Active state.
   final String? statusLabel;
   final Color statusColor;
 
