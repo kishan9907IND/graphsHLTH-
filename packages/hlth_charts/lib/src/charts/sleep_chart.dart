@@ -211,9 +211,11 @@ class _SleepTimelinePainter extends CustomPainter {
         ).createShader(rect);
     }
 
-    // Vertical risers first (under the horizontal runs) so the rounded runs
-    // sit on top and the corners read as smooth elbows — the continuous
-    // rounded-step ribbon. A real gap leaves no riser.
+    // SleepChartKit style: rectangular stage bars (≤4px corners), not pills.
+    const radius = Radius.circular(4);
+
+    // Vertical risers first (under the horizontal runs) so they join into a
+    // continuous stepped ribbon. A real gap leaves no riser.
     for (var i = 0; i < segments.length - 1; i++) {
       if (segments[i + 1].start.difference(segments[i].end) > _gapThreshold) {
         continue;
@@ -228,12 +230,12 @@ class _SleepTimelinePainter extends CustomPainter {
       final rect = Rect.fromLTRB(x - t / 2, topY, x + t / 2, botY);
       final dim = selected != null && selected != i && selected != i + 1;
       canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, Radius.circular(t / 2)),
+        RRect.fromRectAndRadius(rect, radius),
         ribbonPaint(rect, topStage, botStage, dim),
       );
     }
 
-    // Horizontal runs — one constant-thickness rounded bar per segment.
+    // Horizontal runs — one rectangular bar per segment.
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final left = xFor(seg.start);
@@ -247,7 +249,7 @@ class _SleepTimelinePainter extends CustomPainter {
       );
       final dim = selected != null && selected != i;
       canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, Radius.circular(t / 2)),
+        RRect.fromRectAndRadius(rect, radius),
         ribbonPaint(rect, seg.stage, seg.stage, dim),
       );
     }
