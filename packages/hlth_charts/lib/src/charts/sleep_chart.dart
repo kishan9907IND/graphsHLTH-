@@ -173,7 +173,7 @@ class _SleepTimelinePainter extends CustomPainter {
     final plotW = plotRight - plotLeft;
     final laneArea = size.height - _topInset - _bottomInset;
     final laneH = laneArea / _lanes.length;
-    final blockH = (laneH * 0.52).clamp(8.0, 26.0);
+    final blockH = (laneH * 0.62).clamp(8.0, 30.0);
 
     double xFor(DateTime t) =>
         plotLeft + (t.difference(start).inMicroseconds / total) * plotW;
@@ -242,7 +242,11 @@ class _SleepTimelinePainter extends CustomPainter {
       final shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color.lerp(base, Colors.white, 0.22)!, base],
+        colors: [
+          Color.lerp(base, Colors.white, 0.30)!,
+          base,
+          Color.lerp(base, Colors.black, 0.08)!,
+        ],
       ).createShader(rect);
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, Radius.circular(blockH / 2)),
