@@ -113,7 +113,8 @@ class _Spo2Painter extends CustomPainter {
     );
     paintBand(
         canvas, geometry, healthyMin, healthyMax, HlthChartTokens.spo2);
-    paintSeries(canvas, geometry, runs, HlthChartTokens.spo2, fill: false);
+    paintSeries(canvas, geometry, runs, HlthChartTokens.spo2,
+        smooth: true, fill: true);
     paintAxisTicks(canvas, geometry, ticks);
   }
 

@@ -27,7 +27,7 @@ class SleepPlot extends StatefulWidget {
 
 const double _labelWidth = 42;
 const double _topInset = 8;
-const double _bottomInset = 22;
+const double _bottomInset = 8;
 const Duration _gapThreshold = Duration(minutes: 5);
 
 // Lanes top → bottom. Apple orders Awake, REM, Core, Deep.
@@ -67,37 +67,46 @@ class _SleepPlotState extends State<SleepPlot> {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, c) {
-        final size = Size(c.maxWidth, c.maxHeight);
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (d) => _update(d.localPosition.dx, size, segments),
-          onPanStart: (d) => _update(d.localPosition.dx, size, segments),
-          onPanUpdate: (d) => _update(d.localPosition.dx, size, segments),
-          onPanEnd: (_) => _clear(),
-          onTapUp: (_) => _clear(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CustomPaint(
-                size: size,
-                painter: _SleepTimelinePainter(
-                  segments: segments,
-                  selected: _selected,
-                  indicatorX: _indicatorX,
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final size = Size(c.maxWidth, c.maxHeight);
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) => _update(d.localPosition.dx, size, segments),
+                onPanStart: (d) => _update(d.localPosition.dx, size, segments),
+                onPanUpdate: (d) =>
+                    _update(d.localPosition.dx, size, segments),
+                onPanEnd: (_) => _clear(),
+                onTapUp: (_) => _clear(),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CustomPaint(
+                      size: size,
+                      painter: _SleepTimelinePainter(
+                        segments: segments,
+                        selected: _selected,
+                        indicatorX: _indicatorX,
+                      ),
+                    ),
+                    if (_selected != null)
+                      _Tooltip(
+                        segment: segments[_selected!],
+                        x: _indicatorX!,
+                        width: size.width,
+                      ),
+                  ],
                 ),
-              ),
-              if (_selected != null)
-                _Tooltip(
-                  segment: segments[_selected!],
-                  x: _indicatorX!,
-                  width: size.width,
-                ),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+        // Sleep-schedule strip: bedtime → wake with moon/sun + tick marks.
+        _ScheduleStrip(start: segments.first.start, end: segments.last.end),
+      ],
     );
   }
 
@@ -253,23 +262,7 @@ class _SleepTimelinePainter extends CustomPainter {
       );
     }
 
-    // Time axis — 24h HH:MM at ~4 ticks.
-    const ticks = 4;
-    for (var i = 0; i <= ticks; i++) {
-      final t =
-          start.add(Duration(microseconds: (total * i / ticks).round()));
-      final x = xFor(t).clamp(plotLeft, plotRight);
-      final tp = TextPainter(
-        text: TextSpan(text: _fmt(t), style: HlthChartText.axisLabel),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      final lx = (x - tp.width / 2).clamp(plotLeft, size.width - tp.width);
-      tp.paint(canvas, Offset(lx, size.height - tp.height));
-    }
   }
-
-  static String _fmt(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   bool shouldRepaint(_SleepTimelinePainter old) =>
@@ -278,6 +271,9 @@ class _SleepTimelinePainter extends CustomPainter {
       old.indicatorX != indicatorX;
 }
 
+/// The scrub pill: stage name + duration + clock range, like the reference
+/// ("Deep / 44 min / 11:30 pm – 12:15 am"). Floats near the top, following
+/// the indicator.
 class _Tooltip extends StatelessWidget {
   const _Tooltip({required this.segment, required this.x, required this.width});
   final SleepSegment segment;
@@ -286,22 +282,20 @@ class _Tooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const w = 128.0;
+    const w = 150.0;
     final left = (x - w / 2).clamp(0.0, width - w);
-    String fmt(DateTime d) =>
-        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    final mins = segment.duration.inMinutes;
+    final durText = mins >= 60 ? '${mins ~/ 60}h ${mins % 60}m' : '$mins min';
     return Positioned(
       left: left,
       top: 0,
       child: Container(
         width: w,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: HlthChartTokens.cardSurfaceHigh,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: _stageColor(segment.stage).withOpacity(0.6),
-          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _stageColor(segment.stage).withOpacity(0.6)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -329,9 +323,14 @@ class _Tooltip extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 3),
+            Text(
+              durText,
+              style: HlthChartText.cardTitle.copyWith(fontSize: 18),
+            ),
             const SizedBox(height: 2),
             Text(
-              '${fmt(segment.start)}–${fmt(segment.end)}',
+              '${_clock(segment.start)} – ${_clock(segment.end)}',
               style: HlthChartText.axisLabel,
             ),
           ],
@@ -339,4 +338,75 @@ class _Tooltip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 12-hour clock like "11:30 pm".
+String _clock(DateTime d) {
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final m = d.minute.toString().padLeft(2, '0');
+  return '$h:$m ${d.hour < 12 ? 'am' : 'pm'}';
+}
+
+/// Bottom sleep-schedule strip: moon + bedtime on the left, sun + wake on the
+/// right, with evenly spaced hour ticks between — the compact schedule bar
+/// from the reference.
+class _ScheduleStrip extends StatelessWidget {
+  const _ScheduleStrip({required this.start, required this.end});
+  final DateTime start;
+  final DateTime end;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.nightlight_round,
+              size: 14, color: HlthChartTokens.textSecondary),
+          const SizedBox(width: 6),
+          Text(_clock(start), style: HlthChartText.axisLabel),
+          const SizedBox(width: 8),
+          const Expanded(child: _TickRail()),
+          const SizedBox(width: 8),
+          Text(_clock(end), style: HlthChartText.axisLabel),
+          const SizedBox(width: 6),
+          const Icon(Icons.wb_sunny_outlined,
+              size: 14, color: HlthChartTokens.textSecondary),
+        ],
+      ),
+    );
+  }
+}
+
+class _TickRail extends StatelessWidget {
+  const _TickRail();
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 12,
+      child: CustomPaint(painter: _TickPainter()),
+    );
+  }
+}
+
+class _TickPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = HlthChartTokens.axis
+      ..strokeWidth = 1;
+    const count = 28;
+    for (var i = 0; i <= count; i++) {
+      final x = size.width * i / count;
+      final tall = i % 4 == 0;
+      canvas.drawLine(
+        Offset(x, size.height / 2 - (tall ? 4 : 2)),
+        Offset(x, size.height / 2 + (tall ? 4 : 2)),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TickPainter old) => false;
 }

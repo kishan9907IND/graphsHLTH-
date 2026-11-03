@@ -93,6 +93,7 @@ void paintSeries(
   List<List<Offset>> runs,
   Color accent, {
   bool fill = true,
+  bool smooth = false,
 }) {
   final baseY = g.insets.top + g.plotHeight;
 
@@ -112,9 +113,15 @@ void paintSeries(
     final shader = gradient.createShader(plotRect);
     for (final run in runs) {
       if (run.length < 2) continue;
-      final area = Path()..moveTo(run.first.dx, baseY);
-      for (final p in run) {
-        area.lineTo(p.dx, p.dy);
+      final area = Path()
+        ..moveTo(run.first.dx, baseY)
+        ..lineTo(run.first.dx, run.first.dy);
+      if (smooth) {
+        _smoothThrough(area, run);
+      } else {
+        for (final p in run.skip(1)) {
+          area.lineTo(p.dx, p.dy);
+        }
       }
       area
         ..lineTo(run.last.dx, baseY)
@@ -132,8 +139,12 @@ void paintSeries(
   for (final run in runs) {
     if (run.isEmpty) continue;
     final path = Path()..moveTo(run.first.dx, run.first.dy);
-    for (final p in run.skip(1)) {
-      path.lineTo(p.dx, p.dy);
+    if (smooth) {
+      _smoothThrough(path, run);
+    } else {
+      for (final p in run.skip(1)) {
+        path.lineTo(p.dx, p.dy);
+      }
     }
     canvas.drawPath(path, linePaint);
 
@@ -160,5 +171,21 @@ void paintSeries(
       textDirection: TextDirection.ltr,
     )..layout();
     tp.paint(canvas, Offset(midX - tp.width / 2, midY - tp.height / 2));
+  }
+}
+
+/// Append a smooth curve through [p] to [path], which must already be at p[0].
+/// Catmull-Rom spline converted to cubic Béziers — the reaviz "smooth" area
+/// look. Single points are left to the caller.
+void _smoothThrough(Path path, List<Offset> p) {
+  if (p.length < 2) return;
+  for (var i = 0; i < p.length - 1; i++) {
+    final p0 = i == 0 ? p[0] : p[i - 1];
+    final p1 = p[i];
+    final p2 = p[i + 1];
+    final p3 = (i + 2 < p.length) ? p[i + 2] : p2;
+    final c1 = Offset(p1.dx + (p2.dx - p0.dx) / 6, p1.dy + (p2.dy - p0.dy) / 6);
+    final c2 = Offset(p2.dx - (p3.dx - p1.dx) / 6, p2.dy - (p3.dy - p1.dy) / 6);
+    path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
   }
 }

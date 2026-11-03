@@ -115,7 +115,7 @@ class _HrvPainter extends CustomPainter {
     if (showBand) {
       paintBand(canvas, geometry, bandLow, bandHigh, HlthChartTokens.hrv);
     }
-    paintSeries(canvas, geometry, runs, HlthChartTokens.hrv);
+    paintSeries(canvas, geometry, runs, HlthChartTokens.hrv, smooth: true);
     paintAxisTicks(canvas, geometry, ticks);
   }
 

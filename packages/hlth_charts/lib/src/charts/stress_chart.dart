@@ -102,7 +102,7 @@ class _StressPainter extends CustomPainter {
         x += 7;
       }
     }
-    paintSeries(canvas, geometry, runs, HlthChartTokens.stress);
+    paintSeries(canvas, geometry, runs, HlthChartTokens.stress, smooth: true);
     paintAxisTicks(canvas, geometry, ticks);
   }
 
