@@ -173,34 +173,25 @@ class _SleepTimelinePainter extends CustomPainter {
     final plotW = plotRight - plotLeft;
     final laneArea = size.height - _topInset - _bottomInset;
     final laneH = laneArea / _lanes.length;
-    final blockH = (laneH * 0.62).clamp(8.0, 30.0);
+    // Ribbon thickness — a constant-width band, like react-hypnogram.
+    final t = (laneH * 0.55).clamp(14.0, 24.0);
 
-    double xFor(DateTime t) =>
-        plotLeft + (t.difference(start).inMicroseconds / total) * plotW;
+    double xFor(DateTime d) =>
+        plotLeft + (d.difference(start).inMicroseconds / total) * plotW;
     double laneCenter(SleepStage s) {
       final idx = _lanes.indexOf(s);
       return _topInset + laneH * idx + laneH / 2;
     }
 
-    // Dotted vertical hour gridlines behind the ribbon.
+    // Dashed horizontal level gridlines + lane labels.
     final grid = Paint()
       ..color = HlthChartTokens.axis.withOpacity(0.5)
       ..strokeWidth = 1;
-    for (var i = 0; i <= 4; i++) {
-      final t = start.add(Duration(microseconds: (total * i / 4).round()));
-      final x = xFor(t).clamp(plotLeft, plotRight);
-      for (var y = _topInset; y < size.height - _bottomInset; y += 5) {
-        canvas.drawLine(Offset(x, y), Offset(x, y + 2), grid);
-      }
-    }
-
-    // Lane labels + faint baselines.
-    final baseline = Paint()
-      ..color = HlthChartTokens.axis.withOpacity(0.4)
-      ..strokeWidth = 1;
     for (final stage in _lanes) {
       final yc = laneCenter(stage);
-      canvas.drawLine(Offset(plotLeft, yc), Offset(plotRight, yc), baseline);
+      for (var x = plotLeft; x < plotRight; x += 8) {
+        canvas.drawLine(Offset(x, yc), Offset(x + 4, yc), grid);
+      }
       final tp = TextPainter(
         text: TextSpan(text: _laneLabel(stage), style: HlthChartText.axisLabel),
         textDirection: TextDirection.ltr,
@@ -208,24 +199,41 @@ class _SleepTimelinePainter extends CustomPainter {
       tp.paint(canvas, Offset(0, yc - tp.height / 2));
     }
 
-    // Thin vertical connectors at each contiguous transition (Apple Health
-    // style), tinted to the later stage. Drawn under the capsules.
+    Paint ribbonPaint(Rect rect, SleepStage topStage, SleepStage botStage,
+        bool dim) {
+      final top = _stageColor(topStage).withOpacity(dim ? 0.4 : 1.0);
+      final bot = _stageColor(botStage).withOpacity(dim ? 0.4 : 1.0);
+      return Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color.lerp(top, Colors.white, 0.22)!, bot],
+        ).createShader(rect);
+    }
+
+    // Vertical risers first (under the horizontal runs) so the rounded runs
+    // sit on top and the corners read as smooth elbows — the continuous
+    // rounded-step ribbon. A real gap leaves no riser.
     for (var i = 0; i < segments.length - 1; i++) {
-      final gap = segments[i + 1].start.difference(segments[i].end);
-      if (gap > _gapThreshold) continue; // real gap → no connector
+      if (segments[i + 1].start.difference(segments[i].end) > _gapThreshold) {
+        continue;
+      }
       final x = xFor(segments[i].end);
-      final y1 = laneCenter(segments[i].stage);
-      final y2 = laneCenter(segments[i + 1].stage);
-      canvas.drawLine(
-        Offset(x, y1),
-        Offset(x, y2),
-        Paint()
-          ..color = _stageColor(segments[i + 1].stage).withOpacity(0.55)
-          ..strokeWidth = 2,
+      final yA = laneCenter(segments[i].stage);
+      final yB = laneCenter(segments[i + 1].stage);
+      final topY = yA < yB ? yA : yB;
+      final botY = yA < yB ? yB : yA;
+      final topStage = yA < yB ? segments[i].stage : segments[i + 1].stage;
+      final botStage = yA < yB ? segments[i + 1].stage : segments[i].stage;
+      final rect = Rect.fromLTRB(x - t / 2, topY, x + t / 2, botY);
+      final dim = selected != null && selected != i && selected != i + 1;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(t / 2)),
+        ribbonPaint(rect, topStage, botStage, dim),
       );
     }
 
-    // Stage capsules, each with a subtle vertical gradient (lighter top).
+    // Horizontal runs — one constant-thickness rounded bar per segment.
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final left = xFor(seg.start);
@@ -233,24 +241,14 @@ class _SleepTimelinePainter extends CustomPainter {
       final yc = laneCenter(seg.stage);
       final rect = Rect.fromLTRB(
         left,
-        yc - blockH / 2,
-        (right).clamp(left + 2, plotRight),
-        yc + blockH / 2,
+        yc - t / 2,
+        right.clamp(left + 2, plotRight),
+        yc + t / 2,
       );
       final dim = selected != null && selected != i;
-      final base = _stageColor(seg.stage).withOpacity(dim ? 0.4 : 1.0);
-      final shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color.lerp(base, Colors.white, 0.30)!,
-          base,
-          Color.lerp(base, Colors.black, 0.08)!,
-        ],
-      ).createShader(rect);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, Radius.circular(blockH / 2)),
-        Paint()..shader = shader,
+        RRect.fromRectAndRadius(rect, Radius.circular(t / 2)),
+        ribbonPaint(rect, seg.stage, seg.stage, dim),
       );
     }
 
