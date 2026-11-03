@@ -27,13 +27,12 @@ class HlthChartTokens {
   static const Color stress = Color(0xFFFFA552);    // warm amber
   static const Color spo2 = Color(0xFF9EC9E8);      // sky blue
 
-  // Sleep stage ramp — the ribbon-hypnogram palette: deep vivid purple at
-  // the bottom band, up through medium purple and lavender to a peach awake
-  // band at the top.
-  static const Color sleepDeep = Color(0xFF6B3FE4);
-  static const Color sleepLight = Color(0xFF9173F0);
-  static const Color sleepRem = Color(0xFFC7B8FA);
-  static const Color sleepAwake = Color(0xFFF4D4A8);
+  // Sleep stage ramp — Apple Health palette: indigo Deep at the bottom band,
+  // blue Core, cyan REM, and an orange-red Awake band at the top.
+  static const Color sleepDeep = Color(0xFF3E32B4);
+  static const Color sleepLight = Color(0xFF2E7DF5); // Core
+  static const Color sleepRem = Color(0xFF46CEE8);
+  static const Color sleepAwake = Color(0xFFFF6B52);
 
   // Design-system series accent (the lime "Resting" line on the Chart/Card
   // master) and the muted "Typical range" band behind it.

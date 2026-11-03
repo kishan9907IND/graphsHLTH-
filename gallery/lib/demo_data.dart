@@ -60,41 +60,40 @@ final List<Spo2Reading> _spo2 = () {
 }();
 
 final List<SleepSegment> _sleep = () {
-  // Hand-authored to match real sleep architecture: a short settle, then
-  // ~90-min cycles — deep sleep concentrated in the first third, REM periods
-  // lengthening toward morning, brief awakenings between cycles. A single
-  // sensor gap ("not measured") sits mid-night. (stage, minutes); a null
-  // stage marks an unrecorded gap.
-  final steps = <(SleepStage?, int)>[
-    (SleepStage.awake, 5),
-    (SleepStage.light, 18),
-    (SleepStage.deep, 44), // deep-heavy first cycle
+  // Hand-authored to match a real Apple Health night (the reference):
+  // ~90-min cycles with deep concentrated early, REM lengthening toward
+  // morning, brief awakenings. Stage totals sum exactly to the reference:
+  // Awake 14m · REM 1h49m · Core 4h26m · Deep 1h4m. (Light == Core.)
+  // Continuous — the "Partial / Not measured" states punch gaps separately.
+  final steps = <(SleepStage, int)>[
+    (SleepStage.awake, 3),
     (SleepStage.light, 16),
-    (SleepStage.rem, 9),
-    (SleepStage.light, 14),
-    (SleepStage.deep, 32),
-    (SleepStage.light, 20),
-    (SleepStage.rem, 17),
+    (SleepStage.deep, 34), // deep-heavy first cycle
+    (SleepStage.light, 24),
+    (SleepStage.rem, 8),
+    (SleepStage.light, 30),
+    (SleepStage.deep, 20),
+    (SleepStage.light, 28),
+    (SleepStage.rem, 16),
     (SleepStage.awake, 4),
-    (null, 18), // sensor gap — not measured
+    (SleepStage.light, 32),
+    (SleepStage.deep, 10),
+    (SleepStage.light, 30),
+    (SleepStage.rem, 22),
     (SleepStage.light, 26),
-    (SleepStage.deep, 15),
-    (SleepStage.light, 18),
+    (SleepStage.awake, 3),
+    (SleepStage.light, 34),
     (SleepStage.rem, 27),
-    (SleepStage.light, 16),
-    (SleepStage.rem, 24), // longer REM toward morning
-    (SleepStage.light, 12),
-    (SleepStage.awake, 6),
-    (SleepStage.light, 10),
-    (SleepStage.rem, 28),
+    (SleepStage.light, 22),
+    (SleepStage.awake, 4),
+    (SleepStage.light, 24),
+    (SleepStage.rem, 36), // long morning REM
   ];
-  var cursor = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 23, 10);
+  var cursor = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 22, 0);
   final out = <SleepSegment>[];
   for (final (stage, mins) in steps) {
     final end = cursor.add(Duration(minutes: mins));
-    if (stage != null) {
-      out.add(SleepSegment(start: cursor, end: end, stage: stage));
-    }
+    out.add(SleepSegment(start: cursor, end: end, stage: stage));
     cursor = end;
   }
   return out;
@@ -367,29 +366,35 @@ MetricViewModel _spo2Model() => MetricViewModel(
     );
 
 MetricViewModel _sleepModel() {
-  final totalMin = _sleep
-      .where((s) => s.stage != SleepStage.awake)
-      .fold<int>(0, (s, seg) => s + seg.duration.inMinutes);
   Duration inStage(SleepStage st) => _sleep
       .where((s) => s.stage == st)
       .fold(Duration.zero, (a, s) => a + s.duration);
-  String hm(Duration d) => '${d.inHours}h ${d.inMinutes % 60}m';
+  final asleepMin = _sleep
+      .where((s) => s.stage != SleepStage.awake)
+      .fold<int>(0, (s, seg) => s + seg.duration.inMinutes);
+  final awakeMin = inStage(SleepStage.awake).inMinutes;
+  // Time in bed = time asleep + awake + a short settle/rouse buffer.
+  final inBedMin = asleepMin + awakeMin + 28;
+  String hm(int m) => '${m ~/ 60}h ${m % 60}m';
+  String hmd(Duration d) => '${d.inHours}h ${d.inMinutes % 60}m';
   return MetricViewModel(
-    title: 'Sleep Quality',
+    title: 'Sleep',
     icon: Icons.bedtime,
     accent: HlthChartTokens.sleepRem,
-    headerLabel: 'Time asleep',
+    // Paired header like Apple Health: Time in bed (left) · Time asleep (right).
+    headerLabel: 'Time in bed',
     unit: '',
     legend: const [
-      LegendItem(label: 'Deep', color: HlthChartTokens.sleepDeep),
-      LegendItem(label: 'Light', color: HlthChartTokens.sleepLight),
-      LegendItem(label: 'REM', color: HlthChartTokens.sleepRem),
       LegendItem(label: 'Awake', color: HlthChartTokens.sleepAwake),
+      LegendItem(label: 'REM', color: HlthChartTokens.sleepRem),
+      LegendItem(label: 'Core', color: HlthChartTokens.sleepLight),
+      LegendItem(label: 'Deep', color: HlthChartTokens.sleepDeep),
     ],
     averageCaption: (_) => 'Last night',
-    rangeValue: (_) => '7–9 h',
-    statusLabel: 'On track',
-    headerValue: (_) => '${totalMin ~/ 60}h ${totalMin % 60}m',
+    rangeCaption: 'Time asleep',
+    rangeValue: (_) => hm(asleepMin),
+    statusLabel: null,
+    headerValue: (_) => hm(inBedMin),
     statusFor: (_) => _sleep.isEmpty ? ChartStatus.empty : ChartStatus.data,
     plotBuilder: (r, status, onZoom) => SleepPlot(
       segments: status == ChartStatus.partial
@@ -397,29 +402,29 @@ MetricViewModel _sleepModel() {
           : _sleep,
     ),
     insightFor: (_) =>
-        'You got ${hm(inStage(SleepStage.deep))} of deep sleep — on the low side.',
-    changeTitle: 'Sleep stages last night',
+        'Deep sleep was ${hmd(inStage(SleepStage.deep))} — a little below your usual.',
+    changeTitle: 'Stages',
     changeRows: (_) => [
       ChangeRow(
-          period: 'Deep',
-          change: hm(inStage(SleepStage.deep)),
+          period: 'Awake',
+          change: hmd(inStage(SleepStage.awake)),
           unit: '',
-          trend: Trend.normal),
+          trend: Trend.low),
       ChangeRow(
           period: 'REM',
-          change: hm(inStage(SleepStage.rem)),
+          change: hmd(inStage(SleepStage.rem)),
           unit: '',
           trend: Trend.high),
       ChangeRow(
-          period: 'Light',
-          change: hm(inStage(SleepStage.light)),
+          period: 'Core',
+          change: hmd(inStage(SleepStage.light)),
           unit: '',
           trend: Trend.normal),
       ChangeRow(
-          period: 'Awake',
-          change: hm(inStage(SleepStage.awake)),
+          period: 'Deep',
+          change: hmd(inStage(SleepStage.deep)),
           unit: '',
-          trend: Trend.low),
+          trend: Trend.normal),
     ],
   );
 }

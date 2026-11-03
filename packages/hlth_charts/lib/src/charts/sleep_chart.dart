@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -175,6 +173,18 @@ class _SleepTimelinePainter extends CustomPainter {
       return _topInset + laneH * idx + laneH / 2;
     }
 
+    // Dotted vertical hour gridlines behind the ribbon.
+    final grid = Paint()
+      ..color = HlthChartTokens.axis.withOpacity(0.5)
+      ..strokeWidth = 1;
+    for (var i = 0; i <= 4; i++) {
+      final t = start.add(Duration(microseconds: (total * i / 4).round()));
+      final x = xFor(t).clamp(plotLeft, plotRight);
+      for (var y = _topInset; y < size.height - _bottomInset; y += 5) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + 2), grid);
+      }
+    }
+
     // Lane labels + faint baselines.
     final baseline = Paint()
       ..color = HlthChartTokens.axis.withOpacity(0.4)
@@ -189,41 +199,24 @@ class _SleepTimelinePainter extends CustomPainter {
       tp.paint(canvas, Offset(0, yc - tp.height / 2));
     }
 
-    // Gradient transition ramps (sleep_chart style): each contiguous
-    // transition is a vertical bar the same thickness as the capsules,
-    // filled with a gradient between the two stage colours, so the lanes
-    // read as one continuous ribbon weaving between stages. Drawn under the
-    // capsules so the rounded caps sit on top.
+    // Thin vertical connectors at each contiguous transition (Apple Health
+    // style), tinted to the later stage. Drawn under the capsules.
     for (var i = 0; i < segments.length - 1; i++) {
       final gap = segments[i + 1].start.difference(segments[i].end);
-      if (gap > _gapThreshold) continue; // real gap → no ramp
+      if (gap > _gapThreshold) continue; // real gap → no connector
       final x = xFor(segments[i].end);
       final y1 = laneCenter(segments[i].stage);
       final y2 = laneCenter(segments[i + 1].stage);
-      final top = math.min(y1, y2);
-      final bot = math.max(y1, y2);
-      final topColor =
-          _stageColor(y1 <= y2 ? segments[i].stage : segments[i + 1].stage);
-      final botColor =
-          _stageColor(y1 <= y2 ? segments[i + 1].stage : segments[i].stage);
-      final rect = Rect.fromLTRB(
-        x - blockH / 2,
-        top - blockH / 2,
-        x + blockH / 2,
-        bot + blockH / 2,
-      );
-      final shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [topColor, botColor],
-      ).createShader(rect);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, Radius.circular(blockH / 2)),
-        Paint()..shader = shader,
+      canvas.drawLine(
+        Offset(x, y1),
+        Offset(x, y2),
+        Paint()
+          ..color = _stageColor(segments[i + 1].stage).withOpacity(0.55)
+          ..strokeWidth = 2,
       );
     }
 
-    // Stage capsules.
+    // Stage capsules, each with a subtle vertical gradient (lighter top).
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final left = xFor(seg.start);
@@ -236,10 +229,15 @@ class _SleepTimelinePainter extends CustomPainter {
         yc + blockH / 2,
       );
       final dim = selected != null && selected != i;
+      final base = _stageColor(seg.stage).withOpacity(dim ? 0.4 : 1.0);
+      final shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color.lerp(base, Colors.white, 0.22)!, base],
+      ).createShader(rect);
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, Radius.circular(blockH / 2)),
-        Paint()
-          ..color = _stageColor(seg.stage).withOpacity(dim ? 0.45 : 1.0),
+        Paint()..shader = shader,
       );
     }
 
