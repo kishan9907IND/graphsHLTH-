@@ -60,40 +60,42 @@ final List<Spo2Reading> _spo2 = () {
 }();
 
 final List<SleepSegment> _sleep = () {
-  final rng = Random(29);
-  final start = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 22, 25);
-  final nightEnd = start.add(const Duration(hours: 7, minutes: 3));
-  // Realistic-ish architecture: deep dominates early, REM grows later, short
-  // awake spikes throughout, with finer segments so the ribbon reads like a
-  // real hypnogram rather than a handful of wide bars.
+  // Hand-authored to match real sleep architecture: a short settle, then
+  // ~90-min cycles — deep sleep concentrated in the first third, REM periods
+  // lengthening toward morning, brief awakenings between cycles. A single
+  // sensor gap ("not measured") sits mid-night. (stage, minutes); a null
+  // stage marks an unrecorded gap.
+  final steps = <(SleepStage?, int)>[
+    (SleepStage.awake, 5),
+    (SleepStage.light, 18),
+    (SleepStage.deep, 44), // deep-heavy first cycle
+    (SleepStage.light, 16),
+    (SleepStage.rem, 9),
+    (SleepStage.light, 14),
+    (SleepStage.deep, 32),
+    (SleepStage.light, 20),
+    (SleepStage.rem, 17),
+    (SleepStage.awake, 4),
+    (null, 18), // sensor gap — not measured
+    (SleepStage.light, 26),
+    (SleepStage.deep, 15),
+    (SleepStage.light, 18),
+    (SleepStage.rem, 27),
+    (SleepStage.light, 16),
+    (SleepStage.rem, 24), // longer REM toward morning
+    (SleepStage.light, 12),
+    (SleepStage.awake, 6),
+    (SleepStage.light, 10),
+    (SleepStage.rem, 28),
+  ];
+  var cursor = DateTime(demoNow.year, demoNow.month, demoNow.day - 1, 23, 10);
   final out = <SleepSegment>[];
-  var cursor = start;
-  var i = 0;
-  while (cursor.isBefore(nightEnd)) {
-    final progress = cursor.difference(start).inMinutes / 423.0; // 0..1
-    final roll = rng.nextDouble();
-    final SleepStage stage;
-    if (roll < 0.10) {
-      stage = SleepStage.awake;
-    } else if (roll < 0.10 + 0.30 * (1 - progress)) {
-      stage = SleepStage.deep; // deep weighted to the first half
-    } else if (roll < 0.10 + 0.30 * (1 - progress) + 0.22 * progress) {
-      stage = SleepStage.rem; // REM weighted to the second half
-    } else {
-      stage = SleepStage.light;
-    }
-    final mins = switch (stage) {
-      SleepStage.awake => 3 + rng.nextInt(5),
-      SleepStage.rem => 8 + rng.nextInt(14),
-      SleepStage.light => 7 + rng.nextInt(16),
-      SleepStage.deep => 10 + rng.nextInt(16),
-    };
+  for (final (stage, mins) in steps) {
     final end = cursor.add(Duration(minutes: mins));
-    out.add(SleepSegment(start: cursor, end: end, stage: stage));
+    if (stage != null) {
+      out.add(SleepSegment(start: cursor, end: end, stage: stage));
+    }
     cursor = end;
-    // A single mid-night sensor gap so the ribbon shows a real break.
-    if (i == 11) cursor = cursor.add(const Duration(minutes: 20));
-    i++;
   }
   return out;
 }();
@@ -365,7 +367,9 @@ MetricViewModel _spo2Model() => MetricViewModel(
     );
 
 MetricViewModel _sleepModel() {
-  final totalMin = _sleep.fold<int>(0, (s, seg) => s + seg.duration.inMinutes);
+  final totalMin = _sleep
+      .where((s) => s.stage != SleepStage.awake)
+      .fold<int>(0, (s, seg) => s + seg.duration.inMinutes);
   Duration inStage(SleepStage st) => _sleep
       .where((s) => s.stage == st)
       .fold(Duration.zero, (a, s) => a + s.duration);
