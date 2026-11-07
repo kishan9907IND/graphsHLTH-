@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hlth_charts/hlth_charts.dart';
 
 import 'demo_data.dart';
+import 'stress_screen.dart';
 
 void main() => runApp(const GalleryApp());
 
@@ -70,11 +71,13 @@ class _GalleryHomeState extends State<GalleryHome> {
                           key: ValueKey(
                               '${_metric.name}-${_size.label}-${_status.name}'),
                           size: _size,
-                          child: MetricScreen(
-                            model: modelFor(_metric),
-                            now: demoNow,
-                            statusOverride: _status,
-                          ),
+                          child: _metric == DemoMetric.stress
+                              ? const StressScreen()
+                              : MetricScreen(
+                                  model: modelFor(_metric),
+                                  now: demoNow,
+                                  statusOverride: _status,
+                                ),
                         ),
                       ),
                     ),
