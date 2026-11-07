@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:hlth_charts/hlth_charts.dart';
 
@@ -213,19 +215,15 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
         ],
       );
 
-  Widget _askCopilot() => Container(
-        padding: const EdgeInsets.all(1.5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-              colors: [_brand, Color(0xFF7B5CFF), Color(0xFF46CEE8)]),
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-              color: _surfaceRaised, borderRadius: BorderRadius.circular(17)),
+  Widget _askCopilot() => const RevolvingGradientBorder(
+        radius: 18,
+        width: 1.6,
+        duration: Duration(seconds: 6),
+        colors: [_brand, Color(0xFF7B5CFF), Color(0xFF46CEE8), _brand],
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
-            children: const [
+            children: [
               Icon(Icons.auto_awesome, size: 20, color: _brand),
               SizedBox(width: 12),
               Expanded(
@@ -392,6 +390,102 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
       ),
     );
   }
+}
+
+/// A rounded card whose gradient border slowly revolves around the outline,
+/// like Gemini's active input. The gradient is a sweep that rotates once per
+/// [duration]; the card fill stays [_surfaceRaised].
+class RevolvingGradientBorder extends StatefulWidget {
+  const RevolvingGradientBorder({
+    super.key,
+    required this.child,
+    required this.colors,
+    this.radius = 18,
+    this.width = 1.6,
+    this.duration = const Duration(seconds: 6),
+  });
+
+  final Widget child;
+  final List<Color> colors;
+  final double radius;
+  final double width;
+  final Duration duration;
+
+  @override
+  State<RevolvingGradientBorder> createState() =>
+      _RevolvingGradientBorderState();
+}
+
+class _RevolvingGradientBorderState extends State<RevolvingGradientBorder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) => CustomPaint(
+        painter: _RevolvePainter(
+          t: _c.value,
+          radius: widget.radius,
+          width: widget.width,
+          colors: widget.colors,
+        ),
+        child: child,
+      ),
+      // Inset the content by the border width so it sits inside the ring.
+      child: Padding(
+        padding: EdgeInsets.all(widget.width),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _RevolvePainter extends CustomPainter {
+  _RevolvePainter({
+    required this.t,
+    required this.radius,
+    required this.width,
+    required this.colors,
+  });
+  final double t;
+  final double radius;
+  final double width;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    // Card fill.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      Paint()..color = _surfaceRaised,
+    );
+    // Revolving sweep-gradient border stroke.
+    final shader = SweepGradient(
+      colors: colors,
+      transform: GradientRotation(t * 2 * math.pi),
+    ).createShader(rect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          rect.deflate(width / 2), Radius.circular(radius - width / 2)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = width
+        ..shader = shader,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RevolvePainter old) => old.t != t;
 }
 
 /// The Stress bar chart (olive bars, one highlighted in brand lime) — Stress's
