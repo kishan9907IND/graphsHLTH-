@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hlth_charts/hlth_charts.dart';
 
+import 'metric_detail_screen.dart';
+
 /// Deterministic demo data + the five view models that pour each metric into
 /// the one shared [MetricScreen] format. Fixed seeds so the gallery renders
 /// identically on every load.
@@ -180,6 +182,151 @@ String _avgCaption(TimeRange r) => switch (r) {
 // ---------------------------------------------------------------------------
 
 enum DemoMetric { hrv, hr, stress, spo2, sleep }
+
+// ---------------------------------------------------------------------------
+// Detail-screen configs: same chrome for every metric, each with its own
+// existing chart + header + low/high values.
+// ---------------------------------------------------------------------------
+
+const _green = Color(0xFF22C55E);
+const _grey = Color(0xFFC7C8C8);
+const _wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _mo = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+String _stamp(DateTime d) => '${_wd[d.weekday - 1]}, ${d.day} ${_mo[d.month - 1]}';
+
+(String, String) _extreme<T>(
+  List<T> xs,
+  double Function(T) v,
+  DateTime Function(T) t, {
+  required bool max,
+}) {
+  if (xs.isEmpty) return ('–', '');
+  var best = xs.first;
+  for (final x in xs) {
+    if (max ? v(x) > v(best) : v(x) < v(best)) best = x;
+  }
+  return (v(best).round().toString(), _stamp(t(best)));
+}
+
+final String _period = TimeRange.week.rangeCaption(demoNow);
+
+MetricDetail detailFor(DemoMetric metric) => switch (metric) {
+      DemoMetric.hrv => () {
+          final d = _win(_hrv, TimeRange.week, (x) => x.timestamp);
+          final lo = _extreme(d, (x) => x.milliseconds, (x) => x.timestamp,
+              max: false);
+          final hi = _extreme(d, (x) => x.milliseconds, (x) => x.timestamp,
+              max: true);
+          return MetricDetail(
+            title: 'HRV',
+            headerLabel: 'HRV',
+            bigValue: _mean(d.map((x) => x.milliseconds)).round().toString(),
+            caption: '7-day average',
+            rightValue: '40–60 ms',
+            rightStatus: 'Normal Range',
+            rightStatusColor: _green,
+            periodCaption: _period,
+            chart: HrvPlot(readings: _hrv, now: demoNow, range: TimeRange.week),
+            lowValue: lo.$1,
+            lowSub: lo.$2,
+            highValue: hi.$1,
+            highSub: hi.$2,
+          );
+        }(),
+      DemoMetric.hr => () {
+          final d = _win(_hr, TimeRange.week, (x) => x.timestamp);
+          final bpm = d.map((x) => x.bpm).toList();
+          final lo = _extreme(d, (x) => x.bpm, (x) => x.timestamp, max: false);
+          final hi = _extreme(d, (x) => x.bpm, (x) => x.timestamp, max: true);
+          return MetricDetail(
+            title: 'Heart Rate',
+            headerLabel: 'Heart rate',
+            bigValue: '${bpm.reduce(min).round()}–${bpm.reduce(max).round()}',
+            caption: 'Avg today',
+            rightValue: '80–124 bpm',
+            rightStatus: '7-day baseline',
+            rightStatusColor: _grey,
+            periodCaption: _period,
+            chart: HrPlot(readings: _hr, now: demoNow, range: TimeRange.week),
+            lowValue: lo.$1,
+            lowSub: lo.$2,
+            highValue: hi.$1,
+            highSub: hi.$2,
+          );
+        }(),
+      DemoMetric.stress => const MetricDetail(
+          title: 'Stress',
+          headerLabel: 'Stress',
+          bigValue: '42',
+          caption: 'Weekly average',
+          rightValue: '28–66',
+          rightStatus: 'Moderate Range',
+          rightStatusColor: _green,
+          periodCaption: '21–27 Sep',
+          chart: StressBarsChart(
+            values: [40, 52, 58, 48, 54, 33, 42],
+            labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+            highlight: 2,
+          ),
+          lowValue: '33',
+          lowSub: 'Sat, 26 Sep',
+          highValue: '58',
+          highSub: 'Wed, 23 Sep',
+        ),
+      DemoMetric.spo2 => () {
+          final d = _win(_spo2, TimeRange.week, (x) => x.timestamp);
+          final lo =
+              _extreme(d, (x) => x.percent, (x) => x.timestamp, max: false);
+          final hi =
+              _extreme(d, (x) => x.percent, (x) => x.timestamp, max: true);
+          return MetricDetail(
+            title: 'SpO₂',
+            headerLabel: 'SpO₂',
+            bigValue: _mean(d.map((x) => x.percent)).round().toString(),
+            caption: '7-day average',
+            rightValue: '95–100 %',
+            rightStatus: 'Normal Range',
+            rightStatusColor: _green,
+            periodCaption: _period,
+            chart: Spo2Plot(readings: _spo2, now: demoNow, range: TimeRange.week),
+            lowValue: lo.$1,
+            lowSub: lo.$2,
+            highValue: hi.$1,
+            highSub: hi.$2,
+          );
+        }(),
+      DemoMetric.sleep => () {
+          Duration inStage(SleepStage s) => _sleep
+              .where((x) => x.stage == s)
+              .fold(Duration.zero, (a, x) => a + x.duration);
+          String hm(Duration x) => '${x.inHours}h ${x.inMinutes % 60}m';
+          final asleep = _sleep
+              .where((s) => s.stage != SleepStage.awake)
+              .fold(Duration.zero, (a, s) => a + s.duration);
+          return MetricDetail(
+            title: 'Sleep',
+            headerLabel: 'Time asleep',
+            bigValue: hm(asleep),
+            caption: 'Last night',
+            rightValue: hm(asleep + inStage(SleepStage.awake) +
+                const Duration(minutes: 28)),
+            rightStatus: 'Time in bed',
+            rightStatusColor: _grey,
+            periodCaption: 'Last night',
+            chart: SleepPlot(segments: _sleep),
+            chartHeight: 210,
+            lowLabel: 'DEEP',
+            lowValue: hm(inStage(SleepStage.deep)),
+            lowSub: 'Deepest stage',
+            highLabel: 'CORE',
+            highValue: hm(inStage(SleepStage.light)),
+            highSub: 'Most of the night',
+          );
+        }(),
+    };
 
 MetricViewModel modelFor(DemoMetric metric) => switch (metric) {
       DemoMetric.hrv => _hrvModel(),
