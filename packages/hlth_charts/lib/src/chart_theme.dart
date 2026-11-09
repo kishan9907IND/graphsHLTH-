@@ -20,15 +20,26 @@ class HlthChartTokens {
   static const Color textSecondary = Color(0xFF9A9AA0);
   static const Color textMuted = Color(0xFF6E6E76);
 
-  // Metric accents
-  static const Color hrv = Color(0xFF7B5CFF);       // vivid purple
-  static const Color hr = Color(0xFFF27A82);        // coral
+  // Metric accents — pulled from the "Metric Charts · States" matrix
+  // (Figma 1119:26870): HRV rose line, HR rose range bars, SpO₂ cyan capsules.
+  static const Color hrv = Color(0xFFF5438A);       // rose / magenta
+  static const Color hr = Color(0xFFF4556E);        // rose-red
   static const Color hrAccent = Color(0xFFB8E86B);  // zone-highlight green
-  static const Color stress = Color(0xFFFFA552);    // warm amber
-  static const Color spo2 = Color(0xFF9EC9E8);      // sky blue
+  static const Color stress = Color(0xFFFFA552);    // warm amber (avg accent)
+  static const Color spo2 = Color(0xFF22D3EE);      // cyan
 
-  // Sleep stage ramp — Apple Health palette: indigo Deep at the bottom band,
-  // blue Core, cyan REM, and an orange-red Awake band at the top.
+  // Stress zone colours (Figma 1119:26352): low/normal green, moderate amber,
+  // high red. Bars are tinted by the value's zone.
+  static const Color stressLow = Color(0xFF2EC46E);
+  static const Color stressMid = Color(0xFFF5B021);
+  static const Color stressHigh = Color(0xFFF45454);
+
+  // Sleep ribbon (Figma 1119:26679): a single periwinkle for every stage —
+  // lanes are identified by vertical position, not colour.
+  static const Color sleepRibbon = Color(0xFF8B7CF6);
+
+  // Sleep stage ramp — kept for the package MetricScreen legend. The plot
+  // itself now renders monochrome via [sleepRibbon].
   static const Color sleepDeep = Color(0xFF3E32B4);
   static const Color sleepLight = Color(0xFF2E7DF5); // Core
   static const Color sleepRem = Color(0xFF46CEE8);

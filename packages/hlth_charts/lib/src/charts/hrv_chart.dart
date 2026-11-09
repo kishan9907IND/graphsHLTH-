@@ -79,6 +79,8 @@ class HrvPlot extends StatelessWidget {
               showBand: showBaselineBand && data.length >= 3 && sigma > 0,
               bandLow: mean - sigma,
               bandHigh: mean + sigma,
+              baseline: mean,
+              endValue: values.last,
             ),
           ),
         );
@@ -101,6 +103,8 @@ class _HrvPainter extends CustomPainter {
     required this.showBand,
     required this.bandLow,
     required this.bandHigh,
+    required this.baseline,
+    required this.endValue,
   });
 
   final List<List<Offset>> runs;
@@ -109,13 +113,79 @@ class _HrvPainter extends CustomPainter {
   final bool showBand;
   final double bandLow;
   final double bandHigh;
+  final double baseline;
+  final double endValue;
+
+  static const Color _accent = HlthChartTokens.hrv;
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Y gridlines + value labels on the LEFT (Figma 1119:25338).
+    paintYGrid(
+      canvas,
+      geometry,
+      values: [geometry.maxY, baseline, geometry.minY],
+      format: (v) => v.round().toString(),
+      rightLabels: false,
+    );
+
+    // Baseline band + centre line + "Baseline NN" caption.
     if (showBand) {
-      paintBand(canvas, geometry, bandLow, bandHigh, HlthChartTokens.hrv);
+      paintBand(canvas, geometry, bandLow, bandHigh, _accent);
+      final by = geometry.yForValue(baseline);
+      canvas.drawLine(
+        Offset(geometry.insets.left, by),
+        Offset(geometry.size.width - geometry.insets.right, by),
+        Paint()
+          ..color = _accent.withOpacity(0.85)
+          ..strokeWidth = 1.5,
+      );
+      final cap = TextPainter(
+        text: TextSpan(
+          text: 'Baseline ${baseline.round()}',
+          style: HlthChartText.axisLabel
+              .copyWith(color: _accent.withOpacity(0.9)),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      cap.paint(canvas, Offset(geometry.insets.left + 20, by - cap.height - 2));
     }
-    paintSeries(canvas, geometry, runs, HlthChartTokens.hrv, smooth: true);
+
+    // Angular polyline (no area fill) to match the Figma reference.
+    paintSeries(canvas, geometry, runs, _accent, smooth: false, fill: false);
+
+    // Node dots at every vertex.
+    final dotFill = Paint()..color = _accent;
+    final dotRing = Paint()
+      ..color = HlthChartTokens.background
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final run in runs) {
+      for (final p in run) {
+        canvas.drawCircle(p, 3.2, dotFill);
+        canvas.drawCircle(p, 3.2, dotRing);
+      }
+    }
+
+    // End-point value label ("79 ms").
+    if (runs.isNotEmpty && runs.last.isNotEmpty) {
+      final end = runs.last.last;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${endValue.round()} ms',
+          style: HlthChartText.axisLabel.copyWith(
+            color: HlthChartTokens.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final lx = (end.dx - tp.width)
+          .clamp(0.0, geometry.size.width - tp.width)
+          .toDouble();
+      tp.paint(canvas, Offset(lx, end.dy - tp.height - 6));
+    }
+
     paintAxisTicks(canvas, geometry, ticks);
   }
 

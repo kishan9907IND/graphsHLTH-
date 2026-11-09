@@ -45,12 +45,9 @@ String _laneLabel(SleepStage s) => switch (s) {
       SleepStage.deep => 'Deep',
     };
 
-Color _stageColor(SleepStage s) => switch (s) {
-      SleepStage.awake => HlthChartTokens.sleepAwake,
-      SleepStage.rem => HlthChartTokens.sleepRem,
-      SleepStage.light => HlthChartTokens.sleepLight,
-      SleepStage.deep => HlthChartTokens.sleepDeep,
-    };
+// Figma 1119:26679 renders the hypnogram monochrome — one periwinkle for
+// every stage. Lanes are told apart by vertical position, not colour.
+Color _stageColor(SleepStage s) => HlthChartTokens.sleepRibbon;
 
 class _SleepPlotState extends State<SleepPlot> {
   double? _indicatorX;

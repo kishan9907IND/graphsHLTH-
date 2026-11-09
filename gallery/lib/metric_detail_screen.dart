@@ -16,7 +16,6 @@ const _textPrimary = Color(0xFFFFFFFF);
 const _textSecondary = Color(0xFFC7C8C8);
 const _textTertiary = Color(0xFF9A99A1);
 const _brand = Color(0xFFD0ED29);
-const _barOlive = Color(0xFF8CA23E);
 
 /// Per-metric content poured into the shared screen.
 class MetricDetail {
@@ -511,29 +510,26 @@ class _RevolvePainter extends CustomPainter {
   bool shouldRepaint(_RevolvePainter old) => old.t != t;
 }
 
-/// The Stress bar chart (olive bars, one highlighted in brand lime) — Stress's
-/// existing chart component, kept as the chart for that screen.
+/// The Stress bar chart — zone-coloured bars (green / amber / red) under a
+/// faint high-stress band, matching the Figma Stress card (1119:26352).
 class StressBarsChart extends StatelessWidget {
   const StressBarsChart({
     super.key,
     required this.values,
     required this.labels,
-    required this.highlight,
   });
   final List<double> values;
   final List<String> labels;
-  final int highlight;
 
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(painter: _StressBars(values, labels, highlight));
+      CustomPaint(painter: _StressBars(values, labels));
 }
 
 class _StressBars extends CustomPainter {
-  _StressBars(this.values, this.labels, this.highlight);
+  _StressBars(this.values, this.labels);
   final List<double> values;
   final List<String> labels;
-  final int highlight;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -559,16 +555,29 @@ class _StressBars extends CustomPainter {
       tp.paint(canvas, Offset(plotW + 8, y - tp.height / 2));
     }
 
+    // High-stress zone band (Figma 1119:26352): a faint shaded strip above
+    // the "high" threshold so elevated bars read against it.
+    const highThreshold = 65.0;
+    canvas.drawRect(
+      Rect.fromLTRB(0, yFor(100), plotW, yFor(highThreshold)),
+      Paint()..color = HlthChartTokens.stressHigh.withOpacity(0.10),
+    );
+
+    // Each bar is tinted by its stress zone: low→green, moderate→amber,
+    // high→red (matches the Figma zone colouring).
+    Color zoneColor(double v) => v >= highThreshold
+        ? HlthChartTokens.stressHigh
+        : (v < 40 ? HlthChartTokens.stressLow : HlthChartTokens.stressMid);
+
     final slot = plotW / values.length;
     final barW = slot * 0.5;
     for (var i = 0; i < values.length; i++) {
       final cx = slot * i + slot / 2;
       final rect = RRect.fromRectAndRadius(
         Rect.fromLTRB(cx - barW / 2, yFor(values[i]), cx + barW / 2, plotH),
-        const Radius.circular(5),
+        Radius.circular(barW / 2),
       );
-      canvas.drawRRect(
-          rect, Paint()..color = i == highlight ? _brand : _barOlive);
+      canvas.drawRRect(rect, Paint()..color = zoneColor(values[i]));
       final tp = TextPainter(
         text: TextSpan(
             text: labels[i],

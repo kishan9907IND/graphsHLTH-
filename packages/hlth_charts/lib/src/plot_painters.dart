@@ -40,6 +40,7 @@ void paintYGrid(
   ChartGeometry g, {
   List<double>? values,
   String Function(double)? format,
+  bool rightLabels = true,
 }) {
   final fmt = format ?? (v) => v.toStringAsFixed(0);
   final line = Paint()
@@ -56,10 +57,10 @@ void paintYGrid(
       text: TextSpan(text: fmt(v), style: HlthChartText.axisLabel),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(
-      canvas,
-      Offset(g.size.width - g.insets.right - tp.width, y - tp.height - 1),
-    );
+    final lx = rightLabels
+        ? g.size.width - g.insets.right - tp.width
+        : g.insets.left;
+    tp.paint(canvas, Offset(lx, y - tp.height - 1));
   }
 }
 

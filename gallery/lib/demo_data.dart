@@ -214,9 +214,10 @@ String _stamp(DateTime d) => '${_wd[d.weekday - 1]}, ${d.day} ${_mo[d.month - 1]
 final String _period = TimeRange.week.rangeCaption(demoNow);
 
 Widget _stressChart(ChartStatus status) => const StressBarsChart(
-      values: [40, 52, 58, 48, 54, 33, 42],
-      labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-      highlight: 2,
+      // A day's stress curve: calm overnight, a morning build, a high-zone
+      // afternoon peak, easing by evening (green / amber / red zones).
+      values: [26, 34, 48, 58, 72, 80, 63, 52, 44, 36, 30, 28],
+      labels: ['12A', '', '', '6A', '', '12P', '', '', '6P', '', '', '12A'],
     );
 
 MetricDetail detailFor(DemoMetric metric) => switch (metric) {

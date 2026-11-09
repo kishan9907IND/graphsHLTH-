@@ -150,8 +150,9 @@ class _HrRangePainter extends CustomPainter {
     paintYGrid(
       canvas,
       geometry,
-      values: [geometry.minY, (geometry.minY + geometry.maxY) / 2, geometry.maxY],
+      values: [geometry.maxY, (geometry.minY + geometry.maxY) / 2, geometry.minY],
       format: (v) => v.round().toString(),
+      rightLabels: false,
     );
     // 7-day baseline band behind the bars.
     paintBand(canvas, geometry, baselineLow, baselineHigh, HlthChartTokens.hr);
@@ -167,16 +168,15 @@ class _HrRangePainter extends CustomPainter {
         Rect.fromLTRB(x - barWidth / 2, top, x + barWidth / 2, bot),
         Radius.circular(barWidth / 2),
       );
-      canvas.drawRRect(rect, Paint()..color = HlthChartTokens.hr);
-      // Active-zone cap in green.
-      if (b.hasPeak) {
-        final capH = math.min(barWidth * 1.4, (bot - top));
-        final cap = RRect.fromRectAndRadius(
-          Rect.fromLTRB(x - barWidth / 2, top, x + barWidth / 2, top + capH),
-          Radius.circular(barWidth / 2),
-        );
-        canvas.drawRRect(cap, Paint()..color = HlthChartTokens.hrAccent);
-      }
+      // All-rose capsules — the Figma HR range chart (1119:24973) has no
+      // green active-zone cap; a peak bucket just reads brighter.
+      canvas.drawRRect(
+        rect,
+        Paint()
+          ..color = b.hasPeak
+              ? HlthChartTokens.hr
+              : HlthChartTokens.hr.withOpacity(0.78),
+      );
     }
 
     paintAxisTicks(canvas, geometry, ticks);
