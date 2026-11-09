@@ -38,6 +38,10 @@ class ChartStateBody extends StatelessWidget {
     this.permissionSubtitle = 'Allow access in Settings to show this chart.',
     this.notMeasuredTitle = 'Not measured',
     this.notMeasuredSubtitle = "This wasn't tracked. Wear your device to record it.",
+    this.baselineTitle = 'Calculating your baseline',
+    this.baselineSubtitle =
+        'Keep wearing your band — we need a few more days to learn your normal.',
+    this.showBaselineMessage = false,
     this.onRetry,
     this.onOpenSettings,
   });
@@ -53,6 +57,13 @@ class ChartStateBody extends StatelessWidget {
   final String permissionSubtitle;
   final String notMeasuredTitle;
   final String notMeasuredSubtitle;
+  final String baselineTitle;
+  final String baselineSubtitle;
+
+  /// When true, [ChartStatus.buildingBaseline] renders a "calculating" message
+  /// instead of the plot. Default false keeps the package screens' behaviour
+  /// (they swap in their own progress card around this widget).
+  final bool showBaselineMessage;
   final VoidCallback? onRetry;
   final VoidCallback? onOpenSettings;
 
@@ -61,7 +72,11 @@ class ChartStateBody extends StatelessWidget {
     switch (status) {
       case ChartStatus.data:
       case ChartStatus.partial:
+        return plot;
       case ChartStatus.buildingBaseline:
+        if (showBaselineMessage) {
+          return _StateMessage(title: baselineTitle, subtitle: baselineSubtitle);
+        }
         return plot;
       case ChartStatus.notMeasured:
         return _StateMessage(

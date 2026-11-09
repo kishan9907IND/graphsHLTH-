@@ -213,6 +213,12 @@ String _stamp(DateTime d) => '${_wd[d.weekday - 1]}, ${d.day} ${_mo[d.month - 1]
 
 final String _period = TimeRange.week.rangeCaption(demoNow);
 
+Widget _stressChart(ChartStatus status) => const StressBarsChart(
+      values: [40, 52, 58, 48, 54, 33, 42],
+      labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      highlight: 2,
+    );
+
 MetricDetail detailFor(DemoMetric metric) => switch (metric) {
       DemoMetric.hrv => () {
           final d = _win(_hrv, TimeRange.week, (x) => x.timestamp);
@@ -229,7 +235,14 @@ MetricDetail detailFor(DemoMetric metric) => switch (metric) {
             rightStatus: 'Normal Range',
             rightStatusColor: _green,
             periodCaption: _period,
-            chart: HrvPlot(readings: _hrv, now: demoNow, range: TimeRange.week),
+            accent: HlthChartTokens.hrv,
+            chartBuilder: (status) => HrvPlot(
+              readings: status == ChartStatus.partial
+                  ? _gapped(_hrv, (x) => x.timestamp)
+                  : _hrv,
+              now: demoNow,
+              range: TimeRange.week,
+            ),
             lowValue: lo.$1,
             lowSub: lo.$2,
             highValue: hi.$1,
@@ -250,7 +263,14 @@ MetricDetail detailFor(DemoMetric metric) => switch (metric) {
             rightStatus: '7-day baseline',
             rightStatusColor: _grey,
             periodCaption: _period,
-            chart: HrPlot(readings: _hr, now: demoNow, range: TimeRange.week),
+            accent: HlthChartTokens.hr,
+            chartBuilder: (status) => HrPlot(
+              readings: status == ChartStatus.partial
+                  ? _gapped(_hr, (x) => x.timestamp)
+                  : _hr,
+              now: demoNow,
+              range: TimeRange.week,
+            ),
             lowValue: lo.$1,
             lowSub: lo.$2,
             highValue: hi.$1,
@@ -266,11 +286,8 @@ MetricDetail detailFor(DemoMetric metric) => switch (metric) {
           rightStatus: 'Moderate Range',
           rightStatusColor: _green,
           periodCaption: '21–27 Sep',
-          chart: StressBarsChart(
-            values: [40, 52, 58, 48, 54, 33, 42],
-            labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-            highlight: 2,
-          ),
+          accent: HlthChartTokens.stress,
+          chartBuilder: _stressChart,
           lowValue: '33',
           lowSub: 'Sat, 26 Sep',
           highValue: '58',
@@ -291,7 +308,14 @@ MetricDetail detailFor(DemoMetric metric) => switch (metric) {
             rightStatus: 'Normal Range',
             rightStatusColor: _green,
             periodCaption: _period,
-            chart: Spo2Plot(readings: _spo2, now: demoNow, range: TimeRange.week),
+            accent: HlthChartTokens.spo2,
+            chartBuilder: (status) => Spo2Plot(
+              readings: status == ChartStatus.partial
+                  ? _gapped(_spo2, (x) => x.timestamp)
+                  : _spo2,
+              now: demoNow,
+              range: TimeRange.week,
+            ),
             lowValue: lo.$1,
             lowSub: lo.$2,
             highValue: hi.$1,
@@ -316,7 +340,12 @@ MetricDetail detailFor(DemoMetric metric) => switch (metric) {
             rightStatus: 'Time in bed',
             rightStatusColor: _grey,
             periodCaption: 'Last night',
-            chart: SleepPlot(segments: _sleep),
+            accent: HlthChartTokens.sleepRem,
+            chartBuilder: (status) => SleepPlot(
+              segments: status == ChartStatus.partial
+                  ? _gapped(_sleep, (x) => x.start)
+                  : _sleep,
+            ),
             chartHeight: 210,
             lowLabel: 'DEEP',
             lowValue: hm(inStage(SleepStage.deep)),

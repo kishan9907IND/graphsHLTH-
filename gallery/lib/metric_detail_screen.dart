@@ -29,11 +29,12 @@ class MetricDetail {
     required this.rightStatus,
     required this.rightStatusColor,
     required this.periodCaption,
-    required this.chart,
+    required this.chartBuilder,
     required this.lowValue,
     required this.lowSub,
     required this.highValue,
     required this.highSub,
+    this.accent = _brand,
     this.lowLabel = 'LOWEST',
     this.highLabel = 'HIGHEST',
     this.chartHeight = 190,
@@ -47,15 +48,24 @@ class MetricDetail {
   final String rightStatus;
   final Color rightStatusColor;
   final String periodCaption;
-  final Widget chart;
+
+  /// Builds the chart for a given state — lets Partial swap in gapped data.
+  final Widget Function(ChartStatus status) chartBuilder;
+  final Color accent;
   final double chartHeight;
   final String lowLabel, lowValue, lowSub;
   final String highLabel, highValue, highSub;
 }
 
 class MetricDetailScreen extends StatefulWidget {
-  const MetricDetailScreen({super.key, required this.detail, this.onBack});
+  const MetricDetailScreen({
+    super.key,
+    required this.detail,
+    this.status = ChartStatus.data,
+    this.onBack,
+  });
   final MetricDetail detail;
+  final ChartStatus status;
   final VoidCallback? onBack;
 
   @override
@@ -68,6 +78,9 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final d = widget.detail;
+    final status = widget.status;
+    final showData =
+        status == ChartStatus.data || status == ChartStatus.partial;
     return ColoredBox(
       color: _bg,
       child: Column(
@@ -85,7 +98,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                     onChanged: (r) => setState(() => _range = r),
                   ),
                   const SizedBox(height: 18),
-                  _header(d),
+                  _header(d, showData),
                   const SizedBox(height: 14),
                   PeriodNavigator(
                       label: d.periodCaption, onPrev: () {}, onNext: () {}),
@@ -97,13 +110,22 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                       color: _surfaceRaised,
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: d.chart,
+                    child: ChartStateBody(
+                      status: status,
+                      accent: d.accent,
+                      plot: d.chartBuilder(status),
+                      showBaselineMessage: true,
+                      onRetry: () {},
+                      onOpenSettings: () {},
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _askCopilot(),
                   const SizedBox(height: 12),
-                  _lowestHighest(d),
-                  const SizedBox(height: 12),
+                  if (showData) ...[
+                    _lowestHighest(d),
+                    const SizedBox(height: 12),
+                  ],
                   _bandsRow(),
                   const SizedBox(height: 16),
                   _articles(),
@@ -173,7 +195,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
         ),
       );
 
-  Widget _header(MetricDetail d) => Row(
+  Widget _header(MetricDetail d, bool showData) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -183,7 +205,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                 Text(d.headerLabel,
                     style: const TextStyle(color: _textSecondary, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text(d.bigValue,
+                Text(showData ? d.bigValue : '--',
                     style: const TextStyle(
                         color: _textPrimary,
                         fontSize: 44,
@@ -191,27 +213,28 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                         letterSpacing: -2,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text(d.caption,
+                Text(showData ? d.caption : 'No data for this period',
                     style: const TextStyle(color: _textSecondary, fontSize: 13)),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(d.rightValue,
-                  style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(d.rightStatus,
-                  style: TextStyle(
-                      color: d.rightStatusColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-            ],
-          ),
+          if (showData)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(d.rightValue,
+                    style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(d.rightStatus,
+                    style: TextStyle(
+                        color: d.rightStatusColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+              ],
+            ),
         ],
       );
 

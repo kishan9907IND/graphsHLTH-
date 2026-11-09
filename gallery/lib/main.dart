@@ -71,7 +71,10 @@ class _GalleryHomeState extends State<GalleryHome> {
                           key: ValueKey(
                               '${_metric.name}-${_size.label}-${_status.name}'),
                           size: _size,
-                          child: MetricDetailScreen(detail: detailFor(_metric)),
+                          child: MetricDetailScreen(
+                            detail: detailFor(_metric),
+                            status: _status,
+                          ),
                         ),
                       ),
                     ),
@@ -138,14 +141,17 @@ class _StateRail extends StatelessWidget {
   final ChartStatus selected;
   final ValueChanged<ChartStatus> onSelect;
 
+  // Figma 4 states (Default / Empty / Partial / Under calculation) + extras.
   static const _items = <(ChartStatus, IconData, String)>[
-    (ChartStatus.data, Icons.show_chart, 'Active'),
-    (ChartStatus.partial, Icons.linear_scale, 'Partial'),
+    (ChartStatus.data, Icons.show_chart, 'Default'),
     (ChartStatus.empty, Icons.inbox_outlined, 'Empty'),
-    (ChartStatus.notMeasured, Icons.sensors_off, 'Not meas.'),
-    (ChartStatus.buildingBaseline, Icons.hourglass_bottom, 'Baseline'),
+    (ChartStatus.partial, Icons.linear_scale, 'Partial'),
+    (ChartStatus.buildingBaseline, Icons.hourglass_bottom, 'Calculating'),
     (ChartStatus.loading, Icons.sync, 'Loading'),
     (ChartStatus.skeleton, Icons.blur_on, 'Skeleton'),
+    (ChartStatus.error, Icons.error_outline, 'Error'),
+    (ChartStatus.permissionOff, Icons.lock_outline, 'Permission'),
+    (ChartStatus.notMeasured, Icons.sensors_off, 'Not meas.'),
   ];
 
   @override
@@ -153,19 +159,21 @@ class _StateRail extends StatelessWidget {
     return Container(
       width: 96,
       color: const Color(0xFF0E0E13),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          const Text('State', style: HlthChartText.axisLabel),
-          const SizedBox(height: 12),
-          for (final (status, icon, label) in _items)
-            _RailButton(
-              icon: icon,
-              label: label,
-              selected: status == selected,
-              onTap: () => onSelect(status),
-            ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            const Text('State', style: HlthChartText.axisLabel),
+            const SizedBox(height: 12),
+            for (final (status, icon, label) in _items)
+              _RailButton(
+                icon: icon,
+                label: label,
+                selected: status == selected,
+                onTap: () => onSelect(status),
+              ),
+          ],
+        ),
       ),
     );
   }
